@@ -3,9 +3,9 @@
 A browser app that reads your completed Todoist tasks and turns them into an RPG character whose
 body shows what you can do, compared with everyone else.
 
-- **Two sections: Calisthenics and Endurance.** Each is a list of exact feats (a strict pull-up,
-  a muscle-up, a sub-30 5 km, a marathon), and each feat carries the estimated share of all adults
-  who can do it. Your standing is a percentile of the population: "top 1.5% of adults". The figures
+- **Two sections: Calisthenics and Endurance.** Each is a list of exact feats (a muscle-up,
+  a front lever, a sub-30 5 km, a marathon), and each feat carries the estimated share of all adults
+  who can do it. Calisthenics is judged on skills, not volume. Your standing is a percentile of the population: "top 1.5% of adults". The figures
   are rough estimates, clearly labelled. See [docs/CRITERIA.md](docs/CRITERIA.md).
 - **Your whole history.** The first sync reads Todoist's full activity log, recurring
   occurrences included, across all projects (The Realm, The Town, Sport, Barou, Inbox).

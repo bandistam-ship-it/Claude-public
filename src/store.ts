@@ -30,9 +30,8 @@ export const DEFAULT_SETTINGS: Settings = {
   token: '',
   apiBase: '',
   situation: { focus: '', goals: '', notes: '', updatedAt: null },
-  // Told to Claude directly: 10 strict pull-ups and 15 strict dips (which includes a first pull-up).
-  claims: { 'calisthenics.3': '2026-11-18', 'calisthenics.6': '2026-11-18', 'calisthenics.8': '2026-11-18' },
-  version: 3,
+  claims: {},
+  version: 4,
   configOverride: '',
 };
 
@@ -46,8 +45,8 @@ export function loadSettings(): Settings {
     return {
       ...DEFAULT_SETTINGS, ...s,
       situation: { ...DEFAULT_SETTINGS.situation, ...s.situation },
-      claims: s.version === 3 && s.claims ? s.claims : DEFAULT_SETTINGS.claims,
-      version: 3,
+      claims: s.version === 4 && s.claims ? s.claims : DEFAULT_SETTINGS.claims,
+      version: 4,
     };
   } catch {
     return DEFAULT_SETTINGS;

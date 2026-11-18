@@ -32,9 +32,9 @@ const calc = (events: CompletionEvent[], claims: Record<string, string> = {}, no
 const cal = (s: ReturnType<typeof calc>) => s.sections[0];
 const end = (s: ReturnType<typeof calc>) => s.sections[1];
 const idOf = (section: 'calisthenics' | 'endurance', text: string) => {
-  const i = SECTIONS.find((x) => x.id === section)!.rungs.findIndex((x) => x.text === text);
-  if (i < 0) throw new Error(`no rung "${text}"`);
-  return rungId(section, i);
+  const rung = SECTIONS.find((x) => x.id === section)!.rungs.find((x) => x.text === text);
+  if (!rung) throw new Error(`no rung "${text}"`);
+  return rungId(section, rung.id);
 };
 
 describe('text', () => {
@@ -65,14 +65,25 @@ describe('classify: only calisthenics and running count', () => {
   });
 });
 
-describe('feats: clean form only', () => {
+describe('feats: skills only, clean form only', () => {
   const f = (id: string) => C.feats.find((x) => x.id === id)!;
   const sport = (content: string, labels: string[] = []) => ev({ content, projectId: 'sport', labels });
-  it('counts a strict pull-up set, not assisted variants', () => {
-    expect(matchFeat(sport('Strict pull-ups, bodyweight – 2x4'), 'body', f('pullup1'))).toBe('counted');
-    expect(matchFeat(sport('Strict pull-ups, bodyweight – 2x4'), 'body', f('pullup10'))).toBeNull();
-    for (const c of ['Banded muscle-ups – 2x2', 'Muscle-up negatives (from a jump) – 3x2', '🎯 MUSCLE-UP TEST – 5 attempts max']) {
-      expect(matchFeat(sport(c), 'body', f('muscleup1'))).toBeNull();
+  it('never scores volume: pull-ups, push-ups and dips are not feats', () => {
+    expect(C.feats.map((x) => x.id).sort()).toEqual(['frontlever', 'hspu1', 'muscleup1', 'oneArmPullup', 'planche']);
+    const s = calc([sport('Strict pull-ups, bodyweight – 3x15'), sport('Strict dips – 3x20'), sport('Strict push-ups – 4x30')]);
+    expect(cal(s).share).toBe(1);
+    expect(s.feats).toHaveLength(0);
+  });
+  it('the calisthenics ladder is skills, not rep counts', () => {
+    const texts = SECTIONS[0].rungs.map((x) => x.text).join(' | ');
+    expect(texts).not.toMatch(/\b\d+ (strict )?(push-ups|pull-ups|dips)\b/i);
+    expect(texts).toContain('muscle-up');
+    expect(texts).toContain('front lever');
+  });
+  it('counts a clean skill but never assisted variants, attempts or tests', () => {
+    expect(matchFeat(sport('Strict handstand push-ups – 2x3'), 'body', f('hspu1'))).toBe('counted');
+    for (const c of ['Banded muscle-ups – 2x2', 'Muscle-up negatives (from a jump) – 3x2', '🎯 MUSCLE-UP TEST – 5 attempts max', 'Pike handstand push-ups – 3x5']) {
+      expect(matchFeat(sport(c), 'body', f(c.includes('Pike') ? 'hspu1' : 'muscleup1'))).toBeNull();
     }
   });
   it('needs proof of clean form for a milestone', () => {
@@ -83,8 +94,9 @@ describe('feats: clean form only', () => {
 });
 
 describe('percentile standing', () => {
-  it('the catalog is ordered from most common to rarest, with sane shares', () => {
+  it('the catalog is ordered from most common to rarest, with unique ids and sane shares', () => {
     for (const s of SECTIONS) {
+      expect(new Set(s.rungs.map((x) => x.id)).size).toBe(s.rungs.length);
       for (let i = 0; i < s.rungs.length; i++) {
         expect(s.rungs[i].share).toBeGreaterThan(0);
         expect(s.rungs[i].share).toBeLessThan(1);
@@ -100,40 +112,42 @@ describe('percentile standing', () => {
     expect(s.tier).toBe(1);
     expect(s.archetype.name).toBe('Basement Nerd');
     expect(cal(s).best).toBeNull();
-    expect(cal(s).next!.text).toBe('10 strict push-ups'); // the most common feat is the next one within reach
+    expect(cal(s).next!.text).toBe('Crow or frog stand for 10 seconds'); // the most common skill is the next one within reach
   });
 
-  it('your standing is the share of your rarest achieved feat', () => {
-    const claims = { [idOf('calisthenics', 'First strict pull-up')]: '2026-11-10', [idOf('calisthenics', '10 strict pull-ups')]: '2026-11-10' };
-    const s = calc([], claims);
-    expect(cal(s).best!.text).toBe('10 strict pull-ups');
-    expect(cal(s).share).toBe(0.015); // top 1.5% of adults
-    expect(cal(s).next!.text).toBe('10 strict push-ups');
+  it('your standing is the share of your rarest achieved skill', () => {
+    const s = calc([], { [idOf('calisthenics', 'L-sit for 10 seconds')]: '2026-11-10', [idOf('calisthenics', 'First strict muscle-up')]: '2026-11-10' });
+    expect(cal(s).best!.text).toBe('First strict muscle-up');
+    expect(cal(s).share).toBe(0.005); // about 1 in 200 adults
   });
 
-  it('feats are independent: a rarer feat does not imply an easier one', () => {
+  it('skills are independent: a rarer skill does not imply an easier one', () => {
     const s = calc([], { [idOf('calisthenics', 'First strict muscle-up')]: '2026-11-10' });
     expect(cal(s).rungs.filter((r) => r.achieved)).toHaveLength(1);
   });
 
-  it('detects calisthenics feats from your tasks', () => {
-    const s = calc([
-      ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport' }),
-      ev({ content: 'Strict dips – 3x15', projectId: 'sport' }),
-    ]);
-    expect(cal(s).rungs.filter((r) => r.source === 'auto').map((r) => r.text)).toEqual(['First strict pull-up', '15 strict dips', '10 strict pull-ups']);
-    expect(cal(s).share).toBe(0.015);
+  it('detects skills from your tasks', () => {
+    const s = calc([ev({ content: 'Strict muscle-up – 3x1', projectId: 'sport' }), ev({ content: 'Strict front lever hold – first!', projectId: 'sport', labels: ['Achievement'] })]);
+    expect(cal(s).rungs.filter((r) => r.source === 'auto').map((r) => r.text)).toEqual(['First strict muscle-up', 'Full front lever for 5 seconds']);
+    expect(cal(s).share).toBe(0.0005);
   });
 
-  it('shows why a feat was not accepted when clean form is missing', () => {
-    const s = calc([ev({ content: 'Straight bar dips – 3x15', projectId: 'sport' })]);
+  it('shows why a skill was not accepted when clean form is missing', () => {
+    const s = calc([ev({ content: 'Primul muscle up', labels: ['Achievement', 'Body'] })]);
     expect(cal(s).best).toBeNull();
-    expect(cal(s).rungs.find((r) => r.text === '15 strict dips')!.note).toContain('no proof of clean form');
+    expect(cal(s).rungs.find((r) => r.text === 'First strict muscle-up')!.note).toContain('no proof of clean form');
+  });
+
+  it('ticks stay attached to a skill by its permanent id', () => {
+    const id = idOf('calisthenics', 'First strict muscle-up');
+    expect(id).toBe('calisthenics.muscle-up');
+    expect(cal(calc([], { 'calisthenics.muscle-up': '2026-11-10' })).best!.text).toBe('First strict muscle-up');
+    expect(cal(calc([], { 'calisthenics.3': '2026-11-10' })).share).toBe(1); // an old index-based tick is ignored, not misapplied
   });
 
   it('the combined standing is the geometric mean of both sections', () => {
-    const s = calc([], { [idOf('calisthenics', '10 strict pull-ups')]: '2026-11-10', [idOf('endurance', '10 km in under 55:00')]: '2026-11-10' });
-    expect(s.combinedShare).toBeCloseTo(Math.sqrt(0.015 * 0.03), 6);
+    const s = calc([], { [idOf('calisthenics', 'First strict muscle-up')]: '2026-11-10', [idOf('endurance', '10 km in under 55:00')]: '2026-11-10' });
+    expect(s.combinedShare).toBeCloseTo(Math.sqrt(0.005 * 0.03), 6);
   });
 
   it('maps a share of adults to a build tier', () => {
@@ -153,19 +167,19 @@ describe('archetype', () => {
 
 describe('ever achieved vs currently valid', () => {
   it('a feat lapses from current after its window, but your best does not drop', () => {
-    const id = idOf('calisthenics', '10 strict pull-ups');
+    const id = idOf('calisthenics', 'First strict muscle-up');
     const old = calc([], { [id]: '2026-01-01' }); // 321 days before NOW; calisthenics fades at 240
-    expect(cal(old).share).toBe(0.015);
+    expect(cal(old).share).toBe(0.005);
     expect(cal(old).currentShare).toBe(1);
     expect(cal(old).rungs.find((r) => r.id === id)!.current).toBe(false);
-    expect(cal(calc([], { [id]: '2026-11-10' })).currentShare).toBe(0.015);
+    expect(cal(calc([], { [id]: '2026-11-10' })).currentShare).toBe(0.005);
   });
 
   it('doing it again in a task keeps it current', () => {
-    const first = ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport', completedAt: '2026-01-10T10:00:00Z' });
-    const again = ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport', completedAt: '2026-11-10T10:00:00Z' });
+    const first = ev({ content: 'Strict muscle-up – 3x1', projectId: 'sport', completedAt: '2026-01-10T10:00:00Z' });
+    const again = ev({ content: 'Strict muscle-up – 3x1', projectId: 'sport', completedAt: '2026-11-10T10:00:00Z' });
     expect(cal(calc([first])).currentShare).toBe(1);
-    expect(cal(calc([first, again])).currentShare).toBe(0.015); // 2x10 counts for both pull-up feats
+    expect(cal(calc([first, again])).currentShare).toBe(0.005);
   });
 });
 

@@ -17,28 +17,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   imbalanceRatio: 5,
 
   feats: [
-    // ---- Body (clean form required; assisted variants never count) ----
-    {
-      id: 'pushups10', name: '10 push-ups',
-      pattern: '\\b(push[- ]?ups?|flotari)\\b',
-      disqualify: `${ASSISTED}|\\b(knee|knees|genunchi|incline|wall|perete)\\b`,
-      proof: 'reps', minReps: 10, requiresCleanForm: true,
-    },
-    {
-      id: 'pullup1', name: 'First pull-up',
-      pattern: '\\b(pull[- ]?ups?|chin[- ]?ups?|tractiuni|tractiune)\\b',
-      disqualify: ASSISTED, proof: 'reps', minReps: 1, requiresCleanForm: true,
-    },
-    {
-      id: 'pullup10', name: '10 pull-ups',
-      pattern: '\\b(pull[- ]?ups?|chin[- ]?ups?|tractiuni)\\b',
-      disqualify: ASSISTED, proof: 'reps', minReps: 10, requiresCleanForm: true,
-    },
-    {
-      id: 'dips15', name: '15 dips',
-      pattern: '\\b(dips?|dipsuri)\\b',
-      disqualify: `${ASSISTED}|\\b(bench|banca)\\b`, proof: 'reps', minReps: 15, requiresCleanForm: true,
-    },
+    // ---- Calisthenics skills (clean form required; assisted variants never count). Rep counts are not scored. ----
     {
       id: 'muscleup1', name: 'First muscle-up',
       pattern: '\\bmuscle[- ]?ups?\\b',

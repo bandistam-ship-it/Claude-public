@@ -42,7 +42,7 @@ function pendingNote(a: Auto | undefined, ctx: Ctx): string | undefined {
   return undefined;
 }
 
-export const rungId = (section: string, index: number) => `${section}.${index + 1}`;
+export const rungId = (section: string, id: string) => `${section}.${id}`;
 
 /** Which build tier a share of adults corresponds to: top 50% = 2 … top 0.2% = 7. */
 export function tierFromShare(share: number): number {
@@ -91,8 +91,8 @@ export function computeState(
   let total = 0;
   const sections: SectionState[] = config.sections.map((def) => {
     const lapseMs = def.decayDays ? def.decayDays * DAY_MS : null;
-    const rungs: RungState[] = def.rungs.map((rd, i) => {
-      const id = rungId(def.id, i);
+    const rungs: RungState[] = def.rungs.map((rd) => {
+      const id = rungId(def.id, rd.id);
       const claimedAt = claims[id];
       const auto = !claimedAt && rd.auto ? evalAuto(rd.auto, ctx) : false;
       const achieved = Boolean(claimedAt) || auto;

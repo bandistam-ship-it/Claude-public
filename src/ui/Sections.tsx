@@ -71,6 +71,9 @@ function Section({ s, onToggle, onConfirm }: { s: SectionState; onToggle: (id: s
           Right now: {fmtStanding(s.currentShare)}. Your rarest feat has not been confirmed in {s.def.decayDays} days. Your best never drops.
         </p>
       )}
+      {s.def.id === 'calisthenics' && (
+        <p className="muted small">Judged on skills, not volume. Rep counts like 10 pull-ups are not scored; a muscle-up or a front lever is.</p>
+      )}
       <Ruler s={s} />
       <details className="domain" open>
         <summary className="domain__title">

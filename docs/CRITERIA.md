@@ -1,7 +1,9 @@
 # How standing is calculated
 
 The app has **two sections only: Calisthenics and Endurance.** Each is a list of exact feats, from
-the most common to the rarest. Every feat carries the **estimated share of all adults who can do
+the most common to the rarest. **Calisthenics is judged on skills, not volume**: a movement you
+either can or cannot do (a muscle-up, a front lever, a handstand push-up). Rep counts such as 10
+pull-ups or 30 push-ups are not scored. Every feat carries the **estimated share of all adults who can do
 it**. Your standing in a section is the share for your **rarest achieved feat**:
 
 - rarest feat done by about 1.5% of adults → **top 1.5%**, the **98.5th percentile**
@@ -21,9 +23,9 @@ How each group was estimated:
 
 | Feats | Basis | Confidence |
 |---|---|---|
-| Push-ups, first pull-up | Informed estimates. Published pull-up figures range from about 6% to 17% of adults, with no authoritative survey, so I used 12% | Low |
-| Dips, 10 and 20 pull-ups, L-sit, handstands, pistol squat | Extrapolation from the above and from how rare these are in training communities | Low |
-| Muscle-up, HSPU, front lever, one-arm pull-up, planche | Guesses. No population data exists; these are "1 in 200" to "1 in 5,000" orders of magnitude | Very low |
+| Crow, L-sit, wall handstand, pistol squat | Informed estimates of how many adults can hold or do them. No survey exists | Low |
+| Tuck levers and planche, dragon flag, freestanding handstand | Extrapolated from how rare these are in training communities, about 1 in 100 to 1 in 500 | Very low |
+| Muscle-up, HSPU, full levers, human flag, planche, one-arm pull-up | Guesses. No population data exists; these are "1 in 200" to "1 in 5,000" orders of magnitude | Very low |
 | 5 km / 10 km non-stop | About 15% of adults run regularly (surveys say 5–16%), fewer can run 10 km | Medium-low |
 | Race times (5 km, 10 km, half, marathon) | Share of adults who run × how runners' times are distributed (RunRepeat) | Low |
 | Finished half marathon / marathon | Cumulative finishers per capita, about 2% and 0.5% of adults | Low |
@@ -34,13 +36,13 @@ recalculated.
 
 ## Detecting feats
 
-A feat counts when it is **found in your Todoist history** or **ticked by you**. Calisthenics feats
-found in tasks need proof of clean form: "strict" or "clean" in the task, or the `Clean` label.
+A feat counts when it is **found in your Todoist history** or **ticked by you**. Calisthenics skills
+found in tasks (muscle-up, handstand push-up, front lever, one-arm pull-up, planche) need proof of clean form: "strict" or "clean" in the task, or the `Clean` label.
 Banded, assisted, negative, jumping and "attempt" or "test" tasks never count. Times and heart
 rates cannot be seen in Todoist, so endurance feats are ticked by hand.
 
-Feats are independent: a muscle-up does not imply a pull-up, because you either did it or you did
-not.
+Skills are independent: a muscle-up does not imply a crow stand, because you either can do it or
+you cannot. Each feat has a permanent id, so rewording or reordering the list never moves a tick.
 
 ## Ever achieved vs currently valid
 
@@ -54,7 +56,6 @@ Only calisthenics and running tasks count. Everything else (study, home, work, r
 "not scored".
 
 ## Sources
-- Pull-up prevalence (unverified, conflicting): [Biology Insights](https://biologyinsights.com/how-many-americans-can-do-a-pull-up/), [Infrared for Health](https://infraredforhealth.com/what-percentage-of-population-can-do-a-pull-up/)
 - Race-time distributions among runners: [RunRepeat percentile calculator](https://runrepeat.com/how-do-you-masure-up-the-runners-percentile-calculator)
 - Share of adults who run: [SalesFuel / Nielsen Scarborough](https://salesfuel.com/25-u-s-adults-run-regularly/), [AusPlay (run2.au)](https://run2.au/how-many-australian-adults-run-new-data-says-3-5-million-but-most-go-it-alone/)
 - VO₂max norms by age and sex: [Kaminsky et al. 2015, FRIEND registry](https://pubmed.ncbi.nlm.nih.gov/26455884/)

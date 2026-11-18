@@ -39,6 +39,8 @@ export type Claims = Record<string, string>;
 export type Auto = { feat: string } | { all: Auto[] } | { any: Auto[] };
 
 export interface RungDef {
+  /** Permanent id. A tick is stored under `<section>.<id>`, so rewording or reordering never moves it. */
+  id: string;
   text: string;
   /**
    * Estimated share of the general adult population (0..1) that can do this. Pooled across ages
