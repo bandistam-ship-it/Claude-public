@@ -6,10 +6,19 @@ import type { CompletionEvent, Profile, TodoistMeta } from './engine/types';
  * (thousands of events) → IndexedDB. All access is wrapped: storage can be blocked.
  */
 
+/** Free-text "where I am now". Typed in the app, stays in this browser, never part of the code. */
+export interface Situation {
+  focus: string;
+  goals: string;
+  notes: string;
+  updatedAt: string | null;
+}
+
 export interface Settings {
   token: string;
   apiBase: string;
   profile: Profile;
+  situation: Situation;
   imbalanceThreshold: number;
   /** Advanced: JSON merged over the default engine config. */
   configOverride: string;
@@ -19,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   token: '',
   apiBase: '',
   profile: { netWageRon: 0, positionRank: 0 },
+  situation: { focus: '', goals: '', notes: '', updatedAt: null },
   imbalanceThreshold: 2,
   configOverride: '',
 };
@@ -30,7 +40,11 @@ export function loadSettings(): Settings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const s = JSON.parse(raw) as Partial<Settings>;
-    return { ...DEFAULT_SETTINGS, ...s, profile: { ...DEFAULT_SETTINGS.profile, ...s.profile } };
+    return {
+      ...DEFAULT_SETTINGS, ...s,
+      profile: { ...DEFAULT_SETTINGS.profile, ...s.profile },
+      situation: { ...DEFAULT_SETTINGS.situation, ...s.situation },
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }

@@ -13,6 +13,7 @@ import { Character } from './ui/Character';
 import { History } from './ui/History';
 import { Settings } from './ui/Settings';
 import { Feats, Stats } from './ui/Stats';
+import { Situation } from './ui/Situation';
 
 const SYNC_EVERY_MS = 5 * 60_000;
 type Tab = 'character' | 'history' | 'settings';
@@ -137,6 +138,12 @@ export default function App() {
       {tab === 'character' && (
         <main className="grid">
           <Character state={state} />
+          <Situation
+            profile={settings.profile}
+            situation={settings.situation}
+            careerGate={state.stats.find((s) => s.def.id === 'career')?.gates.find((g) => g.tier === (state.stats.find((s) => s.def.id === 'career')?.tier ?? 1) + 1)}
+            onChange={(profile, situation) => updateSettings({ ...settings, profile, situation })}
+          />
           <Stats state={state} />
           <Feats state={state} />
         </main>

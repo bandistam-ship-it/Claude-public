@@ -123,3 +123,16 @@ code { font-size: 0.85em; }
 
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* My situation */
+.situation__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.situation__head h2 { margin: 0; }
+.situation__form { display: flex; flex-direction: column; gap: 4px; }
+.situation__form label { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; font-size: 0.9rem; }
+.situation__form input, .situation__form select, .situation__form textarea {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; width: 100%;
+}
+.situation__list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 8px 0 0; }
+.situation__list dt { color: var(--muted); font-size: 0.85rem; }
+.situation__list dd { margin: 0; overflow-wrap: anywhere; }
+.situation__text { white-space: pre-line; }

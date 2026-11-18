@@ -62,25 +62,7 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy,
         </label>
       </details>}
 
-      <h3>Career (Todoist can't know these)</h3>
-      <label>
-        Net monthly wage (RON)
-        <input
-          id="wage" type="number" min={0} step={100} value={settings.profile.netWageRon}
-          onChange={(e) => set({ profile: { ...settings.profile, netWageRon: Number(e.target.value) || 0 } })}
-        />
-      </label>
-      <label>
-        Position
-        <select
-          id="position"
-          value={settings.profile.positionRank}
-          onChange={(e) => set({ profile: { ...settings.profile, positionRank: Number(e.target.value) } })}
-        >
-          {DEFAULT_CONFIG.career.positions.map((p, i) => <option key={p} value={i}>{p}</option>)}
-        </select>
-      </label>
-      <p className="muted small">Each Career tier needs both the wage and the position.</p>
+      <p className="muted small">Position and wage live in the “My situation” card on the Character tab.</p>
 
       <h3>Balance</h3>
       <label>
