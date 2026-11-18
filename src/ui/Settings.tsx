@@ -9,9 +9,11 @@ interface Props {
   onReimport: () => void;
   onDemo: () => void;
   busy: boolean;
+  /** Running inside claude.ai with the Todoist connector: no token needed. */
+  connector: boolean;
 }
 
-export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy }: Props) {
+export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy, connector }: Props) {
   const [override, setOverride] = useState(settings.configOverride);
   const [overrideError, setOverrideError] = useState('');
   const set = (patch: Partial<S>) => onChange({ ...settings, ...patch });
@@ -34,38 +36,44 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy 
       <h2>Settings</h2>
 
       <h3>Todoist connection</h3>
+      {connector ? (
+        <p>Connected through your claude.ai Todoist connector. No token needed.</p>
+      ) : (<>
       <label>
         Personal API token
         <input
-          type="password" autoComplete="off" value={settings.token} placeholder="Todoist → Settings → Integrations → Developer"
+          id="token" type="password" autoComplete="off" value={settings.token} placeholder="Todoist → Settings → Integrations → Developer"
           onChange={(e) => set({ token: e.target.value.trim() })}
         />
       </label>
-      <p className="muted small">Stored only in this browser. The app reads your completed tasks; it never changes anything in Todoist.</p>
+      <p className="muted small">Stored only in this browser.</p>
+      </>)}
+      <p className="muted small">The app only reads your completed tasks. It never changes anything in Todoist.</p>
       <div className="row">
-        <button className="btn" disabled={!settings.token || busy} onClick={onSync}>Sync now</button>
-        <button className="btn btn--ghost" disabled={!settings.token || busy} onClick={onReimport}>Re-import full history</button>
+        <button className="btn" disabled={(!connector && !settings.token) || busy} onClick={onSync}>Sync now</button>
+        <button className="btn btn--ghost" disabled={(!connector && !settings.token) || busy} onClick={onReimport}>Re-import full history</button>
         <button className="btn btn--ghost" disabled={busy} onClick={onDemo}>Load demo data</button>
       </div>
-      <details>
+      {!connector && <details>
         <summary className="muted small">Advanced: API proxy</summary>
         <label>
           API base URL (leave empty for https://api.todoist.com/api/v1)
-          <input value={settings.apiBase} onChange={(e) => set({ apiBase: e.target.value.trim() })} />
+          <input id="api-base" value={settings.apiBase} onChange={(e) => set({ apiBase: e.target.value.trim() })} />
         </label>
-      </details>
+      </details>}
 
       <h3>Career (Todoist can't know these)</h3>
       <label>
         Net monthly wage (RON)
         <input
-          type="number" min={0} step={100} value={settings.profile.netWageRon}
+          id="wage" type="number" min={0} step={100} value={settings.profile.netWageRon}
           onChange={(e) => set({ profile: { ...settings.profile, netWageRon: Number(e.target.value) || 0 } })}
         />
       </label>
       <label>
         Position
         <select
+          id="position"
           value={settings.profile.positionRank}
           onChange={(e) => set({ profile: { ...settings.profile, positionRank: Number(e.target.value) } })}
         >
@@ -78,7 +86,7 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy 
       <label>
         Imbalance threshold (tier gap that makes you lopsided)
         <input
-          type="number" min={1} max={6} value={settings.imbalanceThreshold}
+          id="threshold" type="number" min={1} max={6} value={settings.imbalanceThreshold}
           onChange={(e) => set({ imbalanceThreshold: Math.max(1, Number(e.target.value) || 2) })}
         />
       </label>
@@ -89,7 +97,7 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy 
         JSON merged over the defaults (top-level keys), e.g. <code>{'{"difficultyXp": {"easy": 8, "medium": 25, "hard": 60, "boss-fight": 120}}'}</code>.
         The whole history is re-scored instantly.
       </p>
-      <textarea rows={6} value={override} onChange={(e) => setOverride(e.target.value)} spellCheck={false} />
+      <textarea id="config-override" rows={6} value={override} onChange={(e) => setOverride(e.target.value)} spellCheck={false} />
       {overrideError && <p className="error">{overrideError}</p>}
       <div className="row">
         <button className="btn" onClick={applyOverride}>Apply</button>

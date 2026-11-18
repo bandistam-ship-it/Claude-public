@@ -63,8 +63,10 @@ export function normalizeActivity(raw: Raw, tasks: Map<string, TaskInfo>): Compl
   const info = tasks.get(taskId) ?? {};
 
   const labels = Array.isArray(x.labels) ? (x.labels as unknown[]).map(String) : (info.labels ?? []);
+  const when = new Date(completedAt).toISOString();
   return {
-    id: String(pick(raw, 'id') ?? `${taskId}@${completedAt}`),
+    // Task + completion time: stable across the REST API and the connector (which rounds activity ids).
+    id: `${taskId}@${when}`,
     taskId,
     content: String(pick(x, 'content') ?? ''),
     description: String(pick(x, 'description') ?? info.description ?? ''),
@@ -74,7 +76,7 @@ export function normalizeActivity(raw: Raw, tasks: Map<string, TaskInfo>): Compl
     labels,
     priority: typeof x.priority === 'number' ? x.priority : (info.priority ?? 1),
     durationMin: durationMinutes(x) ?? info.durationMin ?? null,
-    completedAt: new Date(completedAt).toISOString(),
+    completedAt: when,
     recurring: Boolean(pick(x, 'is_recurring', 'isRecurring')),
   };
 }

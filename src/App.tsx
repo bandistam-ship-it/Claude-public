@@ -7,6 +7,7 @@ import {
   EMPTY_HISTORY, clearHistory, loadHistory, loadSettings, saveHistory, saveSettings,
   type History as Hist, type Settings as S,
 } from './store';
+import { connectorBridge, connectorErrorMessage, syncViaConnector } from './todoist/connector';
 import { sync } from './todoist/sync';
 import { Character } from './ui/Character';
 import { History } from './ui/History';
@@ -34,6 +35,11 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  // undefined = still checking; null = not inside claude.ai (use the API token instead).
+  const [bridge, setBridge] = useState<Awaited<ReturnType<typeof connectorBridge>> | undefined>(undefined);
+  useEffect(() => {
+    connectorBridge().then(setBridge);
+  }, []);
   const historyRef = useRef(history);
   useEffect(() => {
     historyRef.current = history;
@@ -51,29 +57,33 @@ export default function App() {
     saveSettings(s);
   };
 
+  const canSync = Boolean(bridge) || Boolean(settings.token);
+
   const runSync = useCallback(async (fresh = false) => {
-    if (!settings.token) return;
+    if (!bridge && !settings.token) return;
     setBusy(true);
     setError('');
     try {
       const base = fresh ? EMPTY_HISTORY : historyRef.current;
-      const next = await sync(settings.token, settings.apiBase, base, setStatus);
+      const next = bridge
+        ? await syncViaConnector(bridge, base, setStatus)
+        : await sync(settings.token, settings.apiBase, base, setStatus);
       setHistory(next);
       await saveHistory(next);
     } catch (e) {
-      setError((e as Error).message);
+      setError(bridge ? connectorErrorMessage(e) : (e as Error).message);
     } finally {
       setBusy(false);
     }
-  }, [settings.token, settings.apiBase]);
+  }, [bridge, settings.token, settings.apiBase]);
 
   // Poll Todoist while the app is open.
   useEffect(() => {
-    if (!loaded || !settings.token) return;
+    if (!loaded || bridge === undefined || !canSync) return;
     runSync();
     const id = setInterval(() => runSync(), SYNC_EVERY_MS);
     return () => clearInterval(id);
-  }, [loaded, settings.token, runSync]);
+  }, [loaded, bridge, canSync, runSync]);
 
   const config = useMemo(() => buildConfig(settings), [settings]);
   const state = useMemo(
@@ -113,7 +123,7 @@ export default function App() {
         </div>
       )}
 
-      {loaded && !settings.token && !history.events.length && tab !== 'settings' && (
+      {loaded && bridge === null && !settings.token && !history.events.length && tab !== 'settings' && (
         <div className="panel welcome">
           <h2>Connect Todoist</h2>
           <p>Paste your personal API token in Settings to import your full history, or load demo data to look around.</p>
@@ -133,7 +143,10 @@ export default function App() {
       )}
       {tab === 'history' && <History state={state} />}
       {tab === 'settings' && (
-        <Settings settings={settings} onChange={updateSettings} onSync={() => runSync()} onReimport={reimport} onDemo={loadDemo} busy={busy} />
+        <Settings
+          settings={settings} onChange={updateSettings} onSync={() => runSync()} onReimport={reimport}
+          onDemo={loadDemo} busy={busy} connector={Boolean(bridge)}
+        />
       )}
     </div>
   );

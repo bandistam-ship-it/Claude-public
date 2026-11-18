@@ -12,7 +12,7 @@ describe('normalizeActivity', () => {
       },
     };
     expect(normalizeActivity(raw, new Map())).toEqual({
-      id: '2.16', taskId: 'task-plants', content: 'Uda plantele', description: '',
+      id: 'task-plants@2026-09-09T18:20:28.964Z', taskId: 'task-plants', content: 'Uda plantele', description: '',
       projectId: 'project-town', sectionId: 'section-castle', parentId: null,
       labels: ['Easy', 'PeasantLife'], priority: 2, durationMin: 15,
       completedAt: '2026-09-09T18:20:28.964Z', recurring: true,

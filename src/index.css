@@ -1,45 +1,46 @@
 :root {
-  --bg: #15121c;
-  --panel: #1f1a2a;
-  --panel-2: #29223a;
-  --text: #ece6f5;
-  --muted: #a99fbd;
-  --accent: #c9a24a;
-  --accent-2: #8f6fd8;
-  --ok: #5fbf7a;
-  --locked: #d0644f;
-  --border: #3a3150;
-  color-scheme: dark;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Layout: a character sheet: the hero's scene on the left, the ledger of stats on the right. */
+  --bg: #f4f0f7;
+  --panel: #fdfbff;
+  --panel-2: #ece5f3;
+  --text: #241d2e;
+  --muted: #6c6279;
+  --accent: #8a6516;
+  --accent-ink: #fffaf0;
+  --accent-2: #6347b5;
+  --ok: #2c7d47;
+  --locked: #ad3f2c;
+  --border: #ddd3e8;
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+  font-family: var(--font-body);
   line-height: 1.45;
 }
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f6f2ea;
-    --panel: #fffdf8;
-    --panel-2: #f0e9dc;
-    --text: #2a2233;
-    --muted: #6f6580;
-    --accent: #9a7420;
-    --accent-2: #6b4fb8;
-    --ok: #2f8a4b;
-    --locked: #b04431;
-    --border: #e0d6c4;
-    color-scheme: light;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15121c; --panel: #1f1a2a; --panel-2: #2a2339; --text: #ece6f5; --muted: #a99fbd;
+    --accent: #d4ad55; --accent-ink: #1b1408; --accent-2: #9479e0; --ok: #62c27e; --locked: #e0745e; --border: #3a3150;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #15121c; --panel: #1f1a2a; --panel-2: #2a2339; --text: #ece6f5; --muted: #a99fbd;
+  --accent: #d4ad55; --accent-ink: #1b1408; --accent-2: #9479e0; --ok: #62c27e; --locked: #e0745e; --border: #3a3150;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }
 button, input, select, textarea { font: inherit; color: inherit; }
-h1, h2, h3 { margin: 0 0 0.5rem; }
+h1, h2, h3 { margin: 0 0 0.5rem; text-wrap: balance; }
+h1, h2 { font-family: var(--font-display); letter-spacing: 0.02em; }
 h1 { font-size: 1.25rem; }
 h2 { font-size: 1.1rem; color: var(--accent); }
 h3 { font-size: 0.95rem; margin-top: 1.25rem; }
 code { font-size: 0.85em; }
 
-.app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.app { max-width: 1100px; margin: 0 auto; padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .error { color: var(--locked); }
@@ -50,8 +51,8 @@ code { font-size: 0.85em; }
 .tab, .chip, .btn {
   border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer;
 }
-.tab--on, .chip--on { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
-.btn { background: var(--accent); border-color: var(--accent); color: #1b1408; font-weight: 600; }
+.tab--on, .chip--on { background: var(--accent-2); border-color: var(--accent-2); color: var(--panel); }
+.btn { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .btn--ghost { background: transparent; color: var(--text); font-weight: 400; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -72,7 +73,7 @@ code { font-size: 0.85em; }
 .scene__face { grid-area: face; }
 .scene__body { grid-area: body; font-size: 3.4rem; }
 .scene__outfit { grid-area: outfit; font-size: 1.8rem; }
-.archetype { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+.archetype { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--accent); }
 .archetype__emoji { font-size: 1.6rem; }
 .level { margin-top: 8px; text-align: left; }
 
@@ -119,3 +120,6 @@ code { font-size: 0.85em; }
 }
 .settings textarea { max-width: 100%; font-family: ui-monospace, monospace; font-size: 0.8rem; }
 .welcome { border-color: var(--accent); }
+
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
