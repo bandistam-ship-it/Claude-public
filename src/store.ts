@@ -1,5 +1,6 @@
 import { get, set, del } from 'idb-keyval';
-import type { CompletionEvent, TodoistMeta } from './engine/types';
+import type { CompletionEvent, PersonalStats, TodoistMeta } from './engine/types';
+import { EMPTY_STATS } from './engine/stats';
 import { EMPTY_PROFILE, EMPTY_SITUATION, type ClaimLog, type Profile, type Situation } from './state/blob';
 
 /*
@@ -14,6 +15,8 @@ export interface Settings {
   apiBase: string;
   profile: Profile;
   situation: Situation;
+  /** Your measurements, max reps and running bests. */
+  stats: PersonalStats;
   /** Ticks, with un-ticks and timestamps so two devices can be merged. */
   claimLog: ClaimLog;
   /** Opt in: keep ticks, profile and notes in sync through one Todoist comment. */
@@ -30,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   apiBase: '',
   profile: EMPTY_PROFILE,
   situation: EMPTY_SITUATION,
+  stats: EMPTY_STATS,
   claimLog: {},
   syncEnabled: false,
   lastSyncedAt: null,
@@ -53,6 +57,7 @@ export function loadSettings(): Settings {
       ...DEFAULT_SETTINGS, ...s,
       profile: { ...EMPTY_PROFILE, ...s.profile },
       situation: { ...EMPTY_SITUATION, ...s.situation },
+      stats: { ...EMPTY_STATS, ...s.stats },
       claimLog,
       version: 5,
     };

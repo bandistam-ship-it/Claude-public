@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildBlob, claimsOf, decodeBackup, encodeBackup, EMPTY_PROFILE, EMPTY_SITUATION, mergeBlobs, sameBlob, setClaim, type ClaimLog, type StateBlob } from './blob';
+import { EMPTY_STATS } from '../engine/stats';
 import { fromComment, MARKER, syncState, toComment, type Remote, type StateTransport } from './sync';
 
 const T1 = '2026-11-01T10:00:00.000Z';
@@ -68,6 +69,30 @@ describe('backup text', () => {
   });
   it('never contains the Todoist token', () => {
     expect(encodeBackup(blob({}))).not.toMatch(/token/i);
+  });
+});
+
+describe('stats in backup and sync', () => {
+  const withStats = (patch: Partial<typeof EMPTY_STATS>) => buildBlob({}, EMPTY_PROFILE, EMPTY_SITUATION, { ...EMPTY_STATS, ...patch });
+  it('round-trips through a backup', () => {
+    const a = withStats({ pullUps: 10, dips: 15, best5kSec: 1650, updatedAt: T2 });
+    const back = decodeBackup(encodeBackup(a));
+    expect(back.stats.pullUps).toBe(10);
+    expect(back.stats.best5kSec).toBe(1650);
+    expect(sameBlob(a, back)).toBe(true);
+  });
+  it('the newer copy of your stats wins when merging', () => {
+    const old = withStats({ pullUps: 8, updatedAt: T1 });
+    const fresh = withStats({ pullUps: 10, updatedAt: T2 });
+    expect(mergeBlobs(old, fresh).stats.pullUps).toBe(10);
+    expect(mergeBlobs(fresh, old).stats.pullUps).toBe(10);
+  });
+  it('an old backup without stats still restores, and nonsense values are dropped', () => {
+    const b = decodeBackup(JSON.stringify({ app: 'realm-companion', claimLog: {}, stats: { pullUps: 9999, best5kSec: 5, heightCm: 180 } }));
+    expect(b.stats.pullUps).toBeNull();
+    expect(b.stats.best5kSec).toBeNull();
+    expect(b.stats.heightCm).toBe(180);
+    expect(decodeBackup('{"app":"realm-companion"}').stats).toEqual(EMPTY_STATS);
   });
 });
 

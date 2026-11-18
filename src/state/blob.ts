@@ -1,5 +1,6 @@
 import type { Group } from '../engine/demographics';
-import type { Claims } from '../engine/types';
+import { EMPTY_STATS } from '../engine/stats';
+import type { Claims, PersonalStats } from '../engine/types';
 
 /*
  * Everything the app knows that Todoist does not: the skills you ticked, who you are (for age and
@@ -22,6 +23,8 @@ export interface StateBlob {
   claimLog: ClaimLog;
   profile: Profile;
   situation: Situation;
+  /** Your measurements, max reps and running bests. */
+  stats: PersonalStats;
 }
 
 export const EMPTY_PROFILE: Profile = { age: null, group: 'everyone', updatedAt: null };
@@ -35,9 +38,9 @@ export function claimsOf(log: ClaimLog): Claims {
 }
 
 /** Build the shareable blob. Its `updatedAt` is the latest change it contains. */
-export function buildBlob(claimLog: ClaimLog, profile: Profile, situation: Situation): StateBlob {
-  const stamps = [...Object.values(claimLog).map((e) => e.at), profile.updatedAt, situation.updatedAt].filter((x): x is string => Boolean(x));
-  return { app: 'realm-companion', v: 5, updatedAt: stamps.sort().at(-1) ?? new Date(0).toISOString(), claimLog, profile, situation };
+export function buildBlob(claimLog: ClaimLog, profile: Profile, situation: Situation, stats: PersonalStats = EMPTY_STATS): StateBlob {
+  const stamps = [...Object.values(claimLog).map((e) => e.at), profile.updatedAt, situation.updatedAt, stats.updatedAt].filter((x): x is string => Boolean(x));
+  return { app: 'realm-companion', v: 5, updatedAt: stamps.sort().at(-1) ?? new Date(0).toISOString(), claimLog, profile, situation, stats };
 }
 
 export function setClaim(log: ClaimLog, id: string, date: string | null, at: string): ClaimLog {
@@ -59,11 +62,12 @@ export function mergeBlobs(a: StateBlob, b: StateBlob): StateBlob {
     claimLog,
     profile: newer(a.profile.updatedAt, b.profile.updatedAt) ? a.profile : b.profile,
     situation: newer(a.situation.updatedAt, b.situation.updatedAt) ? a.situation : b.situation,
+    stats: newer(a.stats.updatedAt, b.stats.updatedAt) ? a.stats : b.stats,
   };
 }
 
 export function sameBlob(a: StateBlob, b: StateBlob): boolean {
-  return JSON.stringify([a.claimLog, a.profile, a.situation]) === JSON.stringify([b.claimLog, b.profile, b.situation]);
+  return JSON.stringify([a.claimLog, a.profile, a.situation, a.stats]) === JSON.stringify([b.claimLog, b.profile, b.situation, b.stats]);
 }
 
 // ---------- Backup text ----------
@@ -94,11 +98,21 @@ export function decodeBackup(text: string): StateBlob {
   const group = p.group === 'men' || p.group === 'women' ? p.group : 'everyone';
   const age = typeof p.age === 'number' && p.age >= 10 && p.age <= 110 ? Math.round(p.age) : null;
   const str = (v: unknown) => (typeof v === 'string' ? v.slice(0, 2000) : '');
+  const st = isObj(raw.stats) ? raw.stats : {};
+  const num = (v: unknown, min: number, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : null);
+  const stats: PersonalStats = {
+    heightCm: num(st.heightCm, 100, 250), weightKg: num(st.weightKg, 30, 300), waistCm: num(st.waistCm, 40, 250),
+    pullUps: num(st.pullUps, 0, 100), dips: num(st.dips, 0, 200), pushUps: num(st.pushUps, 0, 500),
+    best5kSec: num(st.best5kSec, 600, 7200), best10kSec: num(st.best10kSec, 1200, 14400),
+    longestRunKm: num(st.longestRunKm, 0, 500), restingHr: num(st.restingHr, 25, 140), vo2max: num(st.vo2max, 10, 95),
+    updatedAt: typeof st.updatedAt === 'string' ? st.updatedAt : null,
+  };
   return {
     app: 'realm-companion', v: 5,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date(0).toISOString(),
     claimLog: log,
     profile: { age, group, updatedAt: typeof p.updatedAt === 'string' ? p.updatedAt : null },
     situation: { focus: str(s.focus), goals: str(s.goals), notes: str(s.notes), updatedAt: typeof s.updatedAt === 'string' ? s.updatedAt : null },
+    stats,
   };
 }

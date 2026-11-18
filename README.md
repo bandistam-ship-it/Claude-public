@@ -9,6 +9,8 @@ body shows what you can do, compared with everyone else.
   are rough estimates, clearly labelled. See [docs/CRITERIA.md](docs/CRITERIA.md).
 - **Your whole history.** The first sync reads Todoist's full activity log, recurring
   occurrences included, across all projects (The Realm, The Town, Sport, Barou, Inbox).
+- **My stats.** Your measurements, max reps and running bests. Your max reps set how strong the character
+  looks, so a strong person is never drawn as frail, and your running bests tick the endurance feats.
 - **Versus you, backup and sync.** A timeline of your own progress, a copy-paste backup, and optional
   sync between the claude.ai page and the Android app through one Todoist comment.
 - **Private.** No server. The API token and history stay in your browser (localStorage +

@@ -65,6 +65,22 @@ achieved** forever, and counts as **currently valid** only while you did it or c
 the window. The app shows both: "Top 1.5% of adults" and, if it lapsed, "Right now: top 12%".
 Your best never drops. Tap "I can still do this" to renew a ticked feat.
 
+## Your stats and your build
+The **My stats** card holds your own numbers: height, weight, waist, max strict reps (pull-ups, dips,
+push-ups) and running bests (5 km, 10 km, longest run, resting heart rate, VO₂max). Nothing is saved
+until you press Save, and values outside a plausible range are rejected, so a typo cannot tick a feat.
+
+- **Your build** (the body in the picture) comes from your max reps, never from your skill standing, so
+  a strong person is not drawn as frail. Each exercise is scored on a ladder (pull-ups 1/3/6/10/15/20/25,
+  dips 3/8/15/22/30/40/50, push-ups 5/15/30/45/60/80/100); the build tier is 1 plus the average rung you
+  reach, rounded. For example 10 pull-ups and 15 dips is tier 5, Athletic. With no reps entered, the build
+  falls back to your skill and endurance standing.
+- **Reps are never ranked against other people.** Calisthenics standing is about skills, not volume.
+- **Running bests tick endurance feats**, dated the day you save: a 5 km under 30:00 ticks "5 km in under
+  30:00", a 12 km longest run ticks "Run 10 km without stopping", and so on. Ticks stay if you later
+  change the number, so your timeline keeps the true date.
+- A waist under half your height (waist ÷ height < 0.5) is flagged.
+
 ## Versus you
 Every unlocked skill has the day you first did it (the day you ticked it, or the first matching
 task). The app replays your standing from those dates: standing 1, 3, 6 and 12 months ago against

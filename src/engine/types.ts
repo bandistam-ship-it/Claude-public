@@ -32,6 +32,27 @@ export interface TodoistMeta {
 
 import type { Kind } from './demographics';
 
+/**
+ * Your own numbers. They set the build of the character and tick some endurance feats. They are NOT
+ * ranked against the population (calisthenics standing is about skills, not volume).
+ */
+export interface PersonalStats {
+  heightCm: number | null;
+  weightKg: number | null;
+  waistCm: number | null;
+  /** Max strict reps in one set. */
+  pullUps: number | null;
+  dips: number | null;
+  pushUps: number | null;
+  /** Best times in seconds. */
+  best5kSec: number | null;
+  best10kSec: number | null;
+  longestRunKm: number | null;
+  restingHr: number | null;
+  vo2max: number | null;
+  updatedAt: string | null;
+}
+
 /** Feats you ticked by hand: id -> date (YYYY-MM-DD). */
 export type Claims = Record<string, string>;
 
@@ -197,6 +218,8 @@ export interface CharacterState {
   /** 1..7, drives the character's build and training space. */
   tier: number;
   tierTitle: string;
+  /** Where the build comes from: your max reps, or (with none entered) your skill standing. */
+  buildBasis: 'numbers' | 'standing';
   rungsDone: number;
   rungsTotal: number;
   archetype: { name: string; blurb: string; emoji: string };

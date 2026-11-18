@@ -1,9 +1,10 @@
 import { classify } from './classify';
 import { adjustShare, describeGroup, NO_DEMOGRAPHICS, type Demographics } from './demographics';
 import { detectFeats } from './feats';
+import { buildTierFromStats, EMPTY_STATS } from './stats';
 import type {
   Auto, CharacterState, Claims, CompletionEvent, DetectedFeat, EngineConfig, HistoryEntry,
-  RungState, SectionState, TimelinePoint, TodoistMeta, UnlockEntry, Versus,
+  PersonalStats, RungState, SectionState, TimelinePoint, TodoistMeta, UnlockEntry, Versus,
 } from './types';
 
 const DAY_MS = 86_400_000;
@@ -57,12 +58,18 @@ export function tierFromShare(share: number): number {
  * Archetype from how far apart your two sections are. One section is "lopsided" when it is at
  * least `imbalanceRatio` times rarer than the other.
  */
-export function archetypeOf(cal: number, end: number, config: EngineConfig): CharacterState['archetype'] {
-  if (cal > 0.5 && end > 0.5) return { name: 'Basement Nerd', emoji: '🤓', blurb: 'Frail, unfit, and happiest on the couch.' };
+export function archetypeOf(cal: number, end: number, config: EngineConfig, build = 1): CharacterState['archetype'] {
+  if (cal > 0.5 && end > 0.5) {
+    // Nothing ranked yet. If your own numbers say you are strong, you are not a couch potato.
+    if (build >= 3) return { name: 'Strong Foundation', emoji: '💪', blurb: 'Built strong, with the skills and the engine still to unlock.' };
+    return { name: 'Basement Nerd', emoji: '🤓', blurb: 'Frail, unfit, and happiest on the couch.' };
+  }
   if (cal <= end / config.imbalanceRatio) {
     return { name: 'Calisthenics Wizard', emoji: '🤸', blurb: 'Every bar trick in the book, and no engine to carry him through a long day.' };
   }
   if (end <= cal / config.imbalanceRatio) {
+    // "Little strength" would be wrong for someone whose own numbers say they are strong.
+    if (build >= 4) return { name: 'Strong Runner', emoji: '🏃', blurb: 'Strong and fast on the road, with the bar skills still to unlock.' };
     return { name: 'Lean Distance Runner', emoji: '🏃', blurb: 'All lungs and tendon, with little strength to show for it.' };
   }
   if (cal <= 0.05 && end <= 0.05) return { name: 'Complete Athlete', emoji: '🦸', blurb: 'Strong on the bar, strong on the road.' };
@@ -96,6 +103,7 @@ export function computeState(
   claims: Claims = {},
   now: number = Date.now(),
   demo: Demographics = NO_DEMOGRAPHICS,
+  stats: PersonalStats = EMPTY_STATS,
 ): CharacterState {
   const byId = new Map(rawEvents.map((e) => [e.id, e]));
   const events = [...byId.values()].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
@@ -141,7 +149,9 @@ export function computeState(
   });
 
   const combinedShare = Math.sqrt(sections[0].share * sections[1].share);
-  const tier = tierFromShare(combinedShare);
+  // The build comes from your own numbers when you have entered any; otherwise from your standing.
+  const fromNumbers = buildTierFromStats(stats);
+  const tier = fromNumbers ?? tierFromShare(combinedShare);
 
   // --- Versus you: the same standing, replayed from the date of each unlock ---
   const unlocks: UnlockEntry[] = sections
@@ -164,10 +174,10 @@ export function computeState(
     today,
     sections, timeline, unlocks, versus, trackingSince,
     now: { calisthenics: sections[0].share, endurance: sections[1].share, combined: combinedShare },
-    combinedShare, tier,
+    combinedShare, tier, buildBasis: fromNumbers === null ? 'standing' : 'numbers',
     tierTitle: config.tiers[tier - 1],
     rungsDone: done, rungsTotal: total,
-    archetype: archetypeOf(sections[0].share, sections[1].share, config),
+    archetype: archetypeOf(sections[0].share, sections[1].share, config, tier),
     feats: [...feats.values()],
     history,
   };

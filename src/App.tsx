@@ -7,6 +7,8 @@ import {
   EMPTY_HISTORY, clearHistory, loadHistory, loadSettings, saveHistory, saveSettings,
   type History as Hist, type Settings as S,
 } from './store';
+import { enduranceRungsFromStats } from './engine/stats';
+import type { PersonalStats } from './engine/types';
 import { buildBlob, claimsOf, mergeBlobs, sameBlob, setClaim, type StateBlob } from './state/blob';
 import { pickTransport, syncState } from './state/sync';
 import { connectorBridge, connectorErrorMessage, syncViaConnector } from './todoist/connector';
@@ -17,6 +19,7 @@ import { History } from './ui/History';
 import { Settings } from './ui/Settings';
 import { Feats, Sections } from './ui/Sections';
 import { Situation } from './ui/Situation';
+import { StatsCard } from './ui/StatsCard';
 import { Unlocks } from './ui/Unlocks';
 import { Versus } from './ui/Versus';
 
@@ -71,8 +74,8 @@ export default function App() {
   }, []);
 
   const blob: StateBlob = useMemo(
-    () => buildBlob(settings.claimLog, settings.profile, settings.situation),
-    [settings.claimLog, settings.profile, settings.situation],
+    () => buildBlob(settings.claimLog, settings.profile, settings.situation, settings.stats),
+    [settings.claimLog, settings.profile, settings.situation, settings.stats],
   );
 
   // ---- Todoist history ----
@@ -111,14 +114,14 @@ export default function App() {
     try {
       const transport = await pickTransport(cur.token, cur.apiBase);
       if (!transport) throw new Error('Connect Todoist to sync.');
-      const local = buildBlob(cur.claimLog, cur.profile, cur.situation);
+      const local = buildBlob(cur.claimLog, cur.profile, cur.situation, cur.stats);
       const res = await syncState(local, transport);
       syncedRef.current = res.blob;
       const latest = settingsRef.current;
-      const mine = buildBlob(latest.claimLog, latest.profile, latest.situation);
+      const mine = buildBlob(latest.claimLog, latest.profile, latest.situation, latest.stats);
       // Take the merged copy unless you changed something while the sync was running.
       const next = sameBlob(mine, local) ? res.blob : mergeBlobs(mine, res.blob);
-      updateSettings({ ...latest, claimLog: next.claimLog, profile: next.profile, situation: next.situation, lastSyncedAt: new Date().toISOString() });
+      updateSettings({ ...latest, claimLog: next.claimLog, profile: next.profile, situation: next.situation, stats: next.stats, lastSyncedAt: new Date().toISOString() });
       setStateStatus({ error: '', syncing: false });
     } catch (e) {
       const msg = bridge ? connectorErrorMessage(e) : (e as Error).message;
@@ -147,8 +150,8 @@ export default function App() {
   // The clock is read once per recalculation, outside of rendering.
   const [clock] = useState(() => Date.now());
   const state = useMemo(
-    () => computeState(history.events, history.meta, config, claims, clock, { age: settings.profile.age, group: settings.profile.group }),
-    [history, config, claims, clock, settings.profile.age, settings.profile.group],
+    () => computeState(history.events, history.meta, config, claims, clock, { age: settings.profile.age, group: settings.profile.group }, settings.stats),
+    [history, config, claims, clock, settings.profile.age, settings.profile.group, settings.stats],
   );
 
   const tick = (id: string, date: string | null) =>
@@ -158,7 +161,15 @@ export default function App() {
 
   const restore = (b: StateBlob) => {
     const merged = mergeBlobs(blob, b);
-    updateSettings({ ...settings, claimLog: merged.claimLog, profile: merged.profile, situation: merged.situation });
+    updateSettings({ ...settings, claimLog: merged.claimLog, profile: merged.profile, situation: merged.situation, stats: merged.stats });
+  };
+
+  /** Save your numbers, and tick (dated today) any running feat they now prove. Existing ticks are left alone. */
+  const saveStats = (stats: PersonalStats) => {
+    const at = new Date().toISOString();
+    let log = settings.claimLog;
+    for (const id of enduranceRungsFromStats(stats)) if (!claims[id]) log = setClaim(log, id, today(), at);
+    updateSettings({ ...settings, stats, claimLog: log });
   };
 
   const loadDemo = async () => {
@@ -211,6 +222,7 @@ export default function App() {
             profile={settings.profile} group={state.group}
             onChange={(profile) => updateSettings({ ...settings, profile })}
           />
+          <StatsCard stats={settings.stats} tierTitle={state.tierTitle} buildBasis={state.buildBasis} onChange={saveStats} />
           <Unlocks state={state} />
           <Sections state={state} onToggle={toggleClaim} onConfirm={confirmClaim} />
           <Versus state={state} />

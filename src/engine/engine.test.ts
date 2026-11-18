@@ -7,6 +7,7 @@ import { matchFeat } from './feats';
 import { norm, parseReps } from './text';
 import { fmtPercentile, fmtShare, fmtStanding } from '../ui/format';
 import { adjustShare, bandOf, describeGroup, type Demographics } from './demographics';
+import { buildTierFromStats, EMPTY_STATS, enduranceRungsFromStats, formatDuration, parseDuration, waistToHeight } from './stats';
 import type { CompletionEvent, TodoistMeta } from './types';
 
 // Fixtures modelled on a real account (task names are real).
@@ -273,5 +274,71 @@ describe('versus you', () => {
     expect(byLabel['3 months ago']!.calisthenics).toBe(0.01); // 2026-08-20: only the tuck front lever
     expect(byLabel['6 months ago']!.calisthenics).toBe(0.01); // 2026-05-22: tracking began on 1 May
     expect(byLabel['1 year ago']).toBeNull(); // before you started tracking
+  });
+});
+
+describe('your stats set the build, so a strong person is never frail', () => {
+  const withStats = (patch: Partial<typeof EMPTY_STATS>) => ({ ...EMPTY_STATS, ...patch });
+  const build = (patch: Partial<typeof EMPTY_STATS>, claims: Record<string, string> = {}) =>
+    computeState([], META, C, claims, NOW, { age: 22, group: 'men' }, withStats(patch));
+
+  it('with no numbers and no skills you look frail, as before', () => {
+    expect(build({}).tier).toBe(1);
+    expect(build({}).buildBasis).toBe('standing');
+    expect(build({}).archetype.name).toBe('Basement Nerd');
+  });
+
+  it('10 strict pull-ups and 15 strict dips look athletic, with no skills ticked', () => {
+    const s = build({ pullUps: 10, dips: 15 });
+    expect(s.tier).toBe(5);
+    expect(s.tierTitle).toBe('Athletic');
+    expect(s.buildBasis).toBe('numbers');
+    expect(s.archetype.name).toBe('Strong Foundation'); // not a Basement Nerd
+  });
+
+  it('a strong person who runs is never described as having little strength', () => {
+    const s = build({ pullUps: 10, dips: 15, best5kSec: 27 * 60 + 30 }, { 'endurance.run-5k': '2026-11-10', 'endurance.5k-30': '2026-11-10' });
+    expect(s.archetype.name).toBe('Strong Runner');
+    expect(s.archetype.blurb).not.toMatch(/little strength/);
+    expect(archetypeOf(1, 0.01, C, 1).name).toBe('Lean Distance Runner'); // a weak runner still is one
+  });
+
+  it('the build follows your numbers, up and down', () => {
+    expect(buildTierFromStats(withStats({ pullUps: 1 }))).toBe(2);
+    expect(buildTierFromStats(withStats({ pullUps: 10, dips: 15, pushUps: 40 }))).toBe(4);
+    expect(buildTierFromStats(withStats({ pullUps: 25, dips: 50, pushUps: 100 }))).toBe(7);
+    expect(buildTierFromStats(withStats({ pullUps: 0, dips: 0, pushUps: 0 }))).toBe(1);
+    expect(buildTierFromStats(withStats({ heightCm: 180 }))).toBeNull(); // body measurements alone do not set strength
+  });
+
+  it('reps never touch the skill percentile', () => {
+    expect(cal(build({ pullUps: 25, dips: 50, pushUps: 100 })).share).toBe(1);
+  });
+
+  it('your running bests prove endurance feats', () => {
+    expect(enduranceRungsFromStats(withStats({ best5kSec: 27 * 60 + 30 }))).toEqual(['endurance.run-5k', 'endurance.5k-30']);
+    expect(enduranceRungsFromStats(withStats({ best5kSec: 24 * 60 }))).toEqual(['endurance.run-5k', 'endurance.5k-30', 'endurance.5k-25']);
+    expect(enduranceRungsFromStats(withStats({ best10kSec: 44 * 60 }))).toEqual(['endurance.run-10k', 'endurance.10k-55', 'endurance.10k-45']);
+    expect(enduranceRungsFromStats(withStats({ longestRunKm: 12 }))).toEqual(['endurance.run-5k', 'endurance.run-10k']);
+    expect(enduranceRungsFromStats(EMPTY_STATS)).toEqual([]);
+    // every id it produces must exist in the catalog
+    const ids = new Set(SECTIONS[1].rungs.map((r) => `endurance.${r.id}`));
+    for (const id of enduranceRungsFromStats(withStats({ best5kSec: 1100, best10kSec: 2500, longestRunKm: 42 }))) expect(ids.has(id)).toBe(true);
+  });
+
+  it('computes waist-to-height', () => {
+    expect(waistToHeight(withStats({ waistCm: 80, heightCm: 180 }))).toBeCloseTo(0.444, 3);
+    expect(waistToHeight(withStats({ waistCm: 80 }))).toBeNull();
+  });
+
+  it('reads and writes times', () => {
+    expect(parseDuration('27:30')).toBe(1650);
+    expect(parseDuration('1:05:10')).toBe(3910);
+    expect(parseDuration('27:75')).toBeNull();
+    expect(parseDuration('abc')).toBeNull();
+    expect(parseDuration('27')).toBeNull();
+    expect(formatDuration(1650)).toBe('27:30');
+    expect(formatDuration(3910)).toBe('1:05:10');
+    expect(formatDuration(null)).toBe('');
   });
 });
