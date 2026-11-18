@@ -1,22 +1,19 @@
 import { useEffect, useRef } from 'react';
-import { drawCharacter, type Tiers } from './character';
+import { drawCharacter } from './character';
 import { H, W } from './draw';
-import { drawRoom } from './room';
+import { drawGym } from './gym';
 
-export type { Tiers };
-
-/** The character in his room, drawn as pixel art. Each stat's tier changes one layer. */
-export function PixelScene({ tiers, label }: { tiers: Tiers; label: string }) {
+/** The character in his training space, drawn as pixel art. Body tier sets the build and the gear. */
+export function PixelScene({ body, label }: { body: number; label: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const { body, mind, upkeep } = tiers;
 
   useEffect(() => {
     const ctx = ref.current?.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
-    drawRoom(ctx, upkeep);
-    drawCharacter(ctx, { body, mind, upkeep });
-  }, [body, mind, upkeep]);
+    drawGym(ctx, body);
+    drawCharacter(ctx, body);
+  }, [body]);
 
   return <canvas ref={ref} className="pixel-scene" width={W} height={H} role="img" aria-label={label} />;
 }

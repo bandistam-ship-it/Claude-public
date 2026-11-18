@@ -1,68 +1,47 @@
-import type { CharacterState, MilestoneState, StatState, DomainState } from '../engine/types';
+import type { CharacterState, RungState, SectionState } from '../engine/types';
+import { fmtShare, fmtStanding } from './format';
 
-interface Row { stat: StatState; domain: DomainState; ms: MilestoneState }
+interface Row { section: SectionState; rung: RungState }
 
-/** What you have unlocked lately, what is strongest, and the next unlock in each domain. */
+/** What you have unlocked lately and the next feat within reach in each section. */
 export function Unlocks({ state }: { state: CharacterState }) {
   const recent: Row[] = [];
   const next: Row[] = [];
-  const strongest: { stat: StatState; domain: DomainState }[] = [];
-  for (const stat of state.stats) {
-    for (const domain of stat.domains) {
-      if (domain.level > 1) strongest.push({ stat, domain });
-      for (const ms of domain.milestones) {
-        if (ms.achieved && ms.source !== 'implied' && ms.confirmedAt) recent.push({ stat, domain, ms });
-      }
-      const nextMs = domain.milestones.find((m) => !m.achieved);
-      if (nextMs && stat.def.weight > 1) next.push({ stat, domain, ms: nextMs });
-    }
+  for (const section of state.sections) {
+    for (const rung of section.rungs) if (rung.achieved && rung.confirmedAt) recent.push({ section, rung });
+    if (section.next) next.push({ section, rung: section.next });
   }
-  recent.sort((a, b) => (b.ms.confirmedAt ?? '').localeCompare(a.ms.confirmedAt ?? ''));
-  strongest.sort((a, b) => b.domain.level - a.domain.level);
-  next.sort((a, b) => b.domain.level - a.domain.level);
+  recent.sort((a, b) => (b.rung.confirmedAt ?? '').localeCompare(a.rung.confirmedAt ?? ''));
 
   return (
     <section className="panel unlocks">
       <h2>Unlocked</h2>
-      {recent.length === 0 && strongest.length === 0 ? (
-        <p className="muted">Nothing unlocked yet. Your first milestone will show up here.</p>
+      {recent.length === 0 ? (
+        <p className="muted">Nothing unlocked yet. Your first feat will show up here.</p>
       ) : (
         <>
-          {strongest.length > 0 && (
-            <>
-              <h3>Your strongest</h3>
-              <ul className="plain">
-                {strongest.slice(0, 3).map(({ stat, domain }) => (
-                  <li key={domain.def.id}>
-                    <strong>{stat.def.emoji} {domain.def.name}</strong> <span className="muted">level {domain.level} of 7</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {recent.length > 0 && (
-            <>
-              <h3>Recently unlocked</h3>
-              <ul className="plain">
-                {recent.slice(0, 4).map(({ stat, domain, ms }) => (
-                  <li key={ms.id}>
-                    <span>{stat.def.emoji} <strong>{domain.def.name}</strong> L{ms.level}: {ms.text}</span>
-                    <span className="muted small"> · {ms.confirmedAt}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+          <h3>Recently unlocked</h3>
+          <ul className="plain">
+            {recent.slice(0, 4).map(({ section, rung }) => (
+              <li key={rung.id}>
+                <span>{section.def.emoji} <strong>{rung.text}</strong> <span className="muted">({fmtShare(rung.share)} of adults)</span></span>
+                <span className="muted small">{rung.confirmedAt}</span>
+              </li>
+            ))}
+          </ul>
         </>
       )}
       {next.length > 0 && (
         <>
           <h3>Next unlocks</h3>
           <ul className="plain">
-            {next.map(({ stat, domain, ms }) => (
-              <li key={ms.id}>
-                <span>{stat.def.emoji} <strong>{domain.def.name}</strong> L{ms.level}: {ms.text}</span>
-                {ms.note && <span className="rung__note">{ms.note}</span>}
+            {next.map(({ section, rung }) => (
+              <li key={rung.id}>
+                <span>{section.def.emoji} <strong>{rung.text}</strong></span>
+                <span className="muted small">
+                  {rung.share < section.share ? `Would put you in the ${fmtStanding(rung.share).toLowerCase()}` : `About ${fmtShare(rung.share)} of adults can do this`}
+                </span>
+                {rung.note && <span className="rung__note">{rung.note}</span>}
               </li>
             ))}
           </ul>

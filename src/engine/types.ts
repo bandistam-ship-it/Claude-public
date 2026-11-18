@@ -1,8 +1,11 @@
-// Core domain types. The engine is pure: (events, meta, profile, claims, config) -> CharacterState.
-// There is no XP. Progress is milestones: concrete things you have done or can do.
+// Core domain types. The engine is pure: (events, meta, claims, config) -> CharacterState.
+// Two sections only: Calisthenics and Endurance. Each is a list of feats, and each feat carries
+// the estimated share of the general adult population that can do it, so your standing is a
+// percentile of the population rather than points.
 
-export type StatId = 'body' | 'mind' | 'upkeep';
-export type Bucket = StatId | 'neutral' | 'ignored';
+/** 'body' = a task that counts (calisthenics or running). Everything else is not scored. */
+export type Bucket = 'body' | 'neutral' | 'ignored';
+export type SectionId = 'calisthenics' | 'endurance';
 
 /** One completion of a Todoist task (recurring tasks produce one per occurrence). */
 export interface CompletionEvent {
@@ -27,54 +30,41 @@ export interface TodoistMeta {
   sections: Record<string, { name: string; projectId: string }>;
 }
 
-/** Milestones the user ticked off by hand: id -> ISO date. */
+/** Feats you ticked by hand: id -> ISO date. */
 export type Claims = Record<string, string>;
 
 // ---------- Config ----------
 
-export interface StatDef {
-  id: StatId;
-  name: string;
-  emoji: string;
-  /** 7 tier titles, index 0 = tier 1. */
-  tiers: string[];
-  /** How much this stat counts toward the overall level. */
-  weight: number;
-  /** Archetype when this stat dominates and the character is lopsided. */
-  archetype: { name: string; blurb: string };
-}
+/** How a feat can be detected from your Todoist history without ticking it by hand. */
+export type Auto = { feat: string } | { all: Auto[] } | { any: Auto[] };
 
-/** How a milestone can be detected from your data without ticking it by hand. */
-export type Auto =
-  | { feat: string }
-  | { streak: { weeks: number; perWeek: number; pattern?: string } }
-  | { count: { min: number; pattern?: string } }
-  | { all: Auto[] }
-  | { any: Auto[] };
-
-export interface MilestoneDef {
+export interface RungDef {
   text: string;
+  /**
+   * Estimated share of the general adult population (0..1) that can do this. Pooled across ages
+   * and sexes. These are rough estimates (see docs/CRITERIA.md), not measurements, except the
+   * VO₂max rungs, which are percentiles by definition.
+   */
+  share: number;
   auto?: Auto;
 }
 
-/** One dimension of a stat. `ladder[0]` is the milestone for level 2, `ladder[5]` for level 7. */
-export interface DomainDef {
-  id: string;
+export interface SectionDef {
+  id: SectionId;
   name: string;
+  emoji: string;
   /**
-   * Days after which an unconfirmed milestone stops being "currently valid". It stays "ever
-   * achieved" and never lowers your tier. Omitted = never lapses.
+   * Days after which an unconfirmed feat stops being "currently valid". It stays "ever achieved".
+   * Omitted = never lapses.
    */
   decayDays?: number;
-  ladder: MilestoneDef[];
+  /** Ordered from the most common feat to the rarest. */
+  rungs: RungDef[];
 }
 
 export interface FeatDef {
   id: string;
-  stat: StatId;
   name: string;
-  /** Rough share of adults who have this feat (0..1). Informational. */
-  rarity: number;
   /** Regex (case-insensitive, diacritics stripped) the task text must match. */
   pattern: string;
   /** Regex that disqualifies a match (assisted variants, attempts, tests…). */
@@ -86,10 +76,8 @@ export interface FeatDef {
    */
   proof: 'reps' | 'milestone';
   minReps?: number;
-  /** Body feats: must say strict/clean or carry the Clean label. */
+  /** Must say strict/clean or carry the Clean label. */
   requiresCleanForm?: boolean;
-  /** By default the task must be classified into the feat's own stat. */
-  anyBucket?: boolean;
 }
 
 export interface MappingRule {
@@ -101,16 +89,12 @@ export interface MappingRule {
 }
 
 export interface EngineConfig {
-  stats: StatDef[];
-  /** The domains of each stat. Every stat is judged on all of them, so a high tier means well-rounded. */
-  domains: Record<StatId, DomainDef[]>;
+  sections: SectionDef[];
   feats: FeatDef[];
-  /**
-   * Tier T needs at least `needDomainShare` of the domains at level T or above, and no domain
-   * below level T-1. A neglected domain therefore caps the whole stat.
-   */
-  needDomainShare: number;
-  imbalanceThreshold: number;
+  /** 7 titles for the character's build, from least to most impressive. */
+  tiers: string[];
+  /** Your sections count as lopsided when one is this many times rarer than the other. */
+  imbalanceRatio: number;
   mapping: MappingRule[];
 }
 
@@ -122,46 +106,32 @@ export interface HistoryEntry {
   reason: string;
 }
 
-export interface MilestoneState {
+export interface RungState {
   id: string;
-  /** Level this milestone unlocks (2..7). */
-  level: number;
   text: string;
+  share: number;
   /** Ever achieved. */
   achieved: boolean;
-  /** Achieved and, if the domain fades, confirmed recently enough to count as currently valid. */
+  /** Achieved and, if the section fades, confirmed recently enough to count as currently valid. */
   current: boolean;
-  /** When it was achieved or last confirmed (ticked date, or the matching task). */
+  /** When it was ticked or last seen in your tasks. */
   confirmedAt?: string;
-  /** 'implied': a higher rung in the same domain is achieved, so this one must be too. */
-  source: 'claimed' | 'auto' | 'implied' | null;
-  claimedAt?: string;
+  source: 'claimed' | 'auto' | null;
   /** Why an auto-detected feat was not accepted yet (e.g. no proof of clean form). */
   note?: string;
 }
 
-export interface DomainState {
-  def: DomainDef;
-  /** Best level ever achieved (1 = nothing yet). Lower rungs are implied. */
-  level: number;
-  /** Highest level that is currently valid. Never above `level`. */
-  currentLevel: number;
-  milestones: MilestoneState[];
-}
-
-export interface StatState {
-  def: StatDef;
-  tier: number;
-  title: string;
-  domains: DomainState[];
-  completions: number;
-  nextTitle: string | null;
-  /** 0..1 toward the next tier. */
-  progress: number;
-  /** What stands between you and the next tier, in plain words. */
-  nextNeeds: string[];
-  /** Exact requirement count for the next tier. */
-  nextReq: { level: number; have: number; need: number; behind: number } | null;
+export interface SectionState {
+  def: SectionDef;
+  rungs: RungState[];
+  /** Share of adults who can do your rarest achieved feat. 1 = nothing achieved yet. */
+  share: number;
+  /** The same, counting only feats that are currently valid. */
+  currentShare: number;
+  best: RungState | null;
+  current: RungState | null;
+  /** The most common feat you have not achieved yet. */
+  next: RungState | null;
 }
 
 export interface DetectedFeat {
@@ -174,11 +144,14 @@ export interface DetectedFeat {
 }
 
 export interface CharacterState {
-  stats: StatState[];
-  /** Weighted sum of tiers, shifted so all-tier-1 is level 1. Body and Mind count double. */
-  level: number;
-  milestonesDone: number;
-  milestonesTotal: number;
+  sections: SectionState[];
+  /** Combined standing: the geometric mean of the two sections' shares. */
+  combinedShare: number;
+  /** 1..7, drives the character's build and training space. */
+  tier: number;
+  tierTitle: string;
+  rungsDone: number;
+  rungsTotal: number;
   archetype: { name: string; blurb: string; emoji: string };
   feats: DetectedFeat[];
   history: HistoryEntry[];

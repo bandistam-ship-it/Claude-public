@@ -160,3 +160,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .lapsed { color: var(--locked); }
 .link { all: unset; color: var(--accent-2); text-decoration: underline; cursor: pointer; }
 .link:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+
+/* Body panel */
+.stat__head--static { display: grid; grid-template-columns: 1.8rem 1fr auto auto; gap: 8px; align-items: baseline; }
+.domains { margin-top: 8px; }
+details.domain { border-top: 1px solid var(--border); padding: 8px 0; margin: 0; }
+details.domain > summary { cursor: pointer; list-style: none; }
+details.domain > summary::-webkit-details-marker { display: none; }
+details.domain > summary::before { content: '▸'; color: var(--muted); display: inline-block; width: 1rem; }
+details.domain[open] > summary::before { content: '▾'; }
+.domain__title { display: flex; gap: 8px; align-items: baseline; font-weight: 600; }
+.domain__title > span:first-of-type { flex: 1; min-width: 0; }
+
+/* Sections and the rarity ruler */
+.standing { font-size: 1.15rem; margin: 4px 0; }
+.ruler { margin: 14px 4px 6px; }
+.ruler__track { position: relative; height: 10px; background: var(--panel-2); border-radius: 99px; }
+.ruler__dot { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--border); border: 1px solid var(--muted); box-sizing: border-box; }
+.ruler__dot--on { background: var(--accent-2); border-color: var(--accent-2); }
+.ruler__you { position: absolute; top: -5px; width: 3px; height: 20px; margin-left: -1px; background: var(--accent); border-radius: 2px; }
+.ruler__ticks { position: relative; height: 1.2rem; margin-top: 4px; font-size: 0.7rem; color: var(--muted); }
+.ruler__ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ruler__ticks span:first-child { transform: translateX(-20%); }
+.ruler__ticks span:last-child { transform: translateX(-80%); }
+.rung label { grid-template-columns: auto minmax(0, 1fr) auto; }
+.rung__share { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.footnote { margin: 4px 2px 12px; }

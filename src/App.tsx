@@ -12,7 +12,7 @@ import { sync } from './todoist/sync';
 import { Character } from './ui/Character';
 import { History } from './ui/History';
 import { Settings } from './ui/Settings';
-import { Feats, Stats } from './ui/Stats';
+import { Feats, Sections } from './ui/Sections';
 import { Unlocks } from './ui/Unlocks';
 import { Situation } from './ui/Situation';
 
@@ -26,7 +26,7 @@ function buildConfig(s: S): EngineConfig {
   } catch {
     /* validated in Settings */
   }
-  return { ...DEFAULT_CONFIG, ...override, imbalanceThreshold: s.imbalanceThreshold };
+  return { ...DEFAULT_CONFIG, ...override };
 }
 
 export default function App() {
@@ -151,7 +151,7 @@ export default function App() {
         <main className="grid">
           <Character state={state} />
           <Unlocks state={state} />
-          <Stats state={state} onToggle={toggleClaim} onConfirm={confirmClaim} />
+          <Sections state={state} onToggle={toggleClaim} onConfirm={confirmClaim} />
           <Situation situation={settings.situation} onChange={(situation) => updateSettings({ ...settings, situation })} />
           <Feats state={state} />
         </main>

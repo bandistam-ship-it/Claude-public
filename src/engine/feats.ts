@@ -24,8 +24,7 @@ export type FeatMatch = 'counted' | 'needs-clean-form' | null;
 
 /** Does this completion prove the feat? */
 export function matchFeat(ev: CompletionEvent, bucket: Bucket, feat: FeatDef): FeatMatch {
-  if (bucket === 'ignored') return null;
-  if (!feat.anyBucket && bucket !== feat.stat) return null;
+  if (bucket !== 'body') return null;
   const text = norm(ev.content);
   if (!re(feat.pattern).test(text)) return null;
   if (feat.disqualify && re(feat.disqualify).test(text)) return null;

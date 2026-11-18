@@ -62,20 +62,10 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy,
         </label>
       </details>}
 
-      <h3>Balance</h3>
-      <label>
-        Imbalance threshold (tier gap that makes you lopsided)
-        <input
-          id="threshold" type="number" min={1} max={6} value={settings.imbalanceThreshold}
-          onChange={(e) => set({ imbalanceThreshold: Math.max(1, Number(e.target.value) || 2) })}
-        />
-      </label>
-      <p className="muted small">Decay for neglected stats comes in a later version.</p>
-
       <h3>Advanced: engine config</h3>
       <p className="muted small">
-        JSON merged over the defaults (top-level keys), e.g. <code>{'{"needDomainShare": 0.8}'}</code> makes every tier need 4 of 5 domains instead of 3.
-        Everything is recalculated instantly.
+        JSON merged over the defaults (top-level keys), e.g. <code>{'{"imbalanceRatio": 10}'}</code> needs a bigger gap
+        between your two sections before the character looks lopsided. Everything is recalculated instantly.
       </p>
       <textarea id="config-override" rows={6} value={override} onChange={(e) => setOverride(e.target.value)} spellCheck={false} />
       {overrideError && <p className="error">{overrideError}</p>}

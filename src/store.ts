@@ -20,7 +20,8 @@ export interface Settings {
   situation: Situation;
   /** Milestones you ticked by hand: id -> ISO date. */
   claims: Claims;
-  imbalanceThreshold: number;
+  /** Settings schema version. Older versions used different milestone ids, so their ticks are dropped. */
+  version: number;
   /** Advanced: JSON merged over the default engine config. */
   configOverride: string;
 }
@@ -29,9 +30,9 @@ export const DEFAULT_SETTINGS: Settings = {
   token: '',
   apiBase: '',
   situation: { focus: '', goals: '', notes: '', updatedAt: null },
-  // Told to Claude directly: 10 strict pull-ups and 15 strict dips.
-  claims: { 'body.strength.4': '2026-11-18' },
-  imbalanceThreshold: 2,
+  // Told to Claude directly: 10 strict pull-ups and 15 strict dips (which includes a first pull-up).
+  claims: { 'calisthenics.3': '2026-11-18', 'calisthenics.6': '2026-11-18', 'calisthenics.8': '2026-11-18' },
+  version: 3,
   configOverride: '',
 };
 
@@ -45,7 +46,8 @@ export function loadSettings(): Settings {
     return {
       ...DEFAULT_SETTINGS, ...s,
       situation: { ...DEFAULT_SETTINGS.situation, ...s.situation },
-      claims: s.claims ?? DEFAULT_SETTINGS.claims,
+      claims: s.version === 3 && s.claims ? s.claims : DEFAULT_SETTINGS.claims,
+      version: 3,
     };
   } catch {
     return DEFAULT_SETTINGS;

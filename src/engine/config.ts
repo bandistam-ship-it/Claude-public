@@ -1,162 +1,89 @@
-import { DOMAINS } from './catalog';
+import { SECTIONS } from './catalog';
 import type { EngineConfig } from './types';
 
 /*
- * Default configuration: stat names and tier titles, the feats detected from task text, and how
- * Todoist projects, sections and labels map onto stats. The milestone ladders live in catalog.ts.
- * Percentages in `rarity` are rough estimates, to be replaced with sourced data (docs/CRITERIA.md).
+ * Default configuration: the character's tier titles, the feats detected from task text, and how
+ * Todoist projects, sections and labels map onto Body tasks. The feat ladders, with the estimated
+ * share of adults who can do each, live in catalog.ts.
  */
 
 // Shared regex fragments (applied to lower-case text with diacritics stripped).
 const ASSISTED =
   '\\b(band|banded|bands|elastic|assist|assisted|asistat|asistate|negative|negatives|negativ|negativa|jump|jumping|sarit|attempt|attempts|incercare|incercari|test|drill|drills|kipping|transition|scap|australian|inverted)\\b';
-const SUCCESS = '(sustin|sustinut|sustinere|promovat|promovata|obtinut|obtinuta|absolvit|admis|admisa|reusit|passed|defended|graduated|diploma)';
 
 export const DEFAULT_CONFIG: EngineConfig = {
-  stats: [
-    {
-      id: 'body', name: 'Body', emoji: '💪', weight: 2,
-      tiers: ['Frail', 'Weak', 'Average', 'Fit', 'Athletic', 'Powerful', 'Legendary'],
-      archetype: { name: 'Dumb Brute', blurb: 'Big muscles, blank stare.' },
-    },
-    {
-      id: 'mind', name: 'Mind', emoji: '🧠', weight: 2,
-      tiers: ['Clueless', 'Curious', 'Informed', 'Learned', 'Scholar', 'Sage', 'Genius'],
-      archetype: { name: 'Frail Bookworm', blurb: 'Skinny, thick glasses, never seen daylight.' },
-    },
-    {
-      id: 'upkeep', name: 'Upkeep', emoji: '🏰', weight: 1,
-      tiers: ['Pigsty', 'Messy', 'Livable', 'Tidy', 'Clean', 'Spotless', 'Palace'],
-      archetype: { name: 'Obsessive Housekeeper', blurb: 'Spotless room, while he and the rest of his world fall apart.' },
-    },
-  ],
-
-  domains: DOMAINS,
-  // Tier T needs 3 of 5 domains at level T or above, and none below T-1.
-  needDomainShare: 0.6,
+  sections: SECTIONS,
+  tiers: ['Frail', 'Weak', 'Average', 'Fit', 'Athletic', 'Powerful', 'Legendary'],
+  imbalanceRatio: 5,
 
   feats: [
     // ---- Body (clean form required; assisted variants never count) ----
     {
-      id: 'pushups10', stat: 'body', name: '10 push-ups', rarity: 0.5,
+      id: 'pushups10', name: '10 push-ups',
       pattern: '\\b(push[- ]?ups?|flotari)\\b',
       disqualify: `${ASSISTED}|\\b(knee|knees|genunchi|incline|wall|perete)\\b`,
       proof: 'reps', minReps: 10, requiresCleanForm: true,
     },
     {
-      id: 'pullup1', stat: 'body', name: 'First pull-up', rarity: 0.25,
+      id: 'pullup1', name: 'First pull-up',
       pattern: '\\b(pull[- ]?ups?|chin[- ]?ups?|tractiuni|tractiune)\\b',
       disqualify: ASSISTED, proof: 'reps', minReps: 1, requiresCleanForm: true,
     },
     {
-      id: 'pullup10', stat: 'body', name: '10 pull-ups', rarity: 0.08,
+      id: 'pullup10', name: '10 pull-ups',
       pattern: '\\b(pull[- ]?ups?|chin[- ]?ups?|tractiuni)\\b',
       disqualify: ASSISTED, proof: 'reps', minReps: 10, requiresCleanForm: true,
     },
     {
-      id: 'dips15', stat: 'body', name: '15 dips', rarity: 0.1,
+      id: 'dips15', name: '15 dips',
       pattern: '\\b(dips?|dipsuri)\\b',
       disqualify: `${ASSISTED}|\\b(bench|banca)\\b`, proof: 'reps', minReps: 15, requiresCleanForm: true,
     },
     {
-      id: 'muscleup1', stat: 'body', name: 'First muscle-up', rarity: 0.015,
+      id: 'muscleup1', name: 'First muscle-up',
       pattern: '\\bmuscle[- ]?ups?\\b',
       disqualify: ASSISTED, proof: 'reps', minReps: 1, requiresCleanForm: true,
     },
     {
-      id: 'hspu1', stat: 'body', name: 'Strict handstand push-up', rarity: 0.005,
+      id: 'hspu1', name: 'Strict handstand push-up',
       pattern: '\\b(handstand push[- ]?ups?|hspu)\\b',
       disqualify: `${ASSISTED}|\\b(pike|elevated|partial)\\b`, proof: 'reps', minReps: 1, requiresCleanForm: true,
     },
     {
-      id: 'frontlever', stat: 'body', name: 'Front lever', rarity: 0.003,
+      id: 'frontlever', name: 'Front lever',
       pattern: '\\bfront lever\\b',
       disqualify: `${ASSISTED}|\\b(tuck|straddle|raise|raises)\\b`, proof: 'milestone', requiresCleanForm: true,
     },
     {
-      id: 'oneArmPullup', stat: 'body', name: 'One-arm pull-up', rarity: 0.0005,
+      id: 'oneArmPullup', name: 'One-arm pull-up',
       pattern: '\\b(one[- ]arm pull[- ]?ups?|tractiune pe o mana)\\b',
       disqualify: `${ASSISTED}|\\barcher\\b`, proof: 'reps', minReps: 1, requiresCleanForm: true,
     },
     {
-      id: 'planche', stat: 'body', name: 'Full planche', rarity: 0.0003,
+      id: 'planche', name: 'Full planche',
       pattern: '\\bfull planche\\b',
       disqualify: `${ASSISTED}|\\b(tuck|straddle|lean)\\b`, proof: 'milestone', requiresCleanForm: true,
     },
-
-    // ---- Mind (milestones: an Achievement/Boss-fight task that states the result) ----
-    {
-      id: 'licenta', stat: 'mind', name: 'Bachelor’s degree (licență)', rarity: 0.2,
-      pattern: `(licent.*${SUCCESS}|${SUCCESS}.*licent|bachelor.*${SUCCESS})`, proof: 'milestone', anyBucket: true,
-    },
-    {
-      id: 'barou', stat: 'mind', name: 'Admitted to the Bar (Barou)', rarity: 0.002,
-      pattern: `((barou|inppa|avocat|bar exam).*${SUCCESS}|${SUCCESS}.*(barou|inppa|avocat|bar exam))`, proof: 'milestone', anyBucket: true,
-    },
-    {
-      id: 'languageC1', stat: 'mind', name: 'C1 language certificate', rarity: 0.05,
-      pattern: `(\\b(c1|c2|cae|cpe|ielts|toefl|dalf|goethe)\\b.*${SUCCESS}|${SUCCESS}.*\\b(c1|c2|cae|cpe|ielts|toefl|dalf|goethe)\\b)`,
-      proof: 'milestone', anyBucket: true,
-    },
-    {
-      id: 'masters', stat: 'mind', name: 'Master’s degree', rarity: 0.07,
-      pattern: `(\\b(master|masterat|disertatie|dissertation)\\b.*${SUCCESS}|${SUCCESS}.*\\b(master|masterat|disertatie)\\b)`,
-      proof: 'milestone', anyBucket: true,
-    },
-    {
-      id: 'phd', stat: 'mind', name: 'PhD', rarity: 0.01,
-      pattern: `(\\b(doctorat|phd|teza de doctorat)\\b.*${SUCCESS}|${SUCCESS}.*\\b(doctorat|phd)\\b)`, proof: 'milestone', anyBucket: true,
-    },
-    {
-      id: 'published', stat: 'mind', name: 'Published work', rarity: 0.001,
-      pattern: '\\b(publicat|publicata|published)\\b', proof: 'milestone',
-    },
   ],
 
-  imbalanceThreshold: 2,
-
-  // First matching rule wins.
+  // First matching rule wins. Only Body tasks are scored; everything else is "not scored".
   mapping: [
     // Rewards and reference cards are not progress.
     { bucket: 'ignored', label: 'Rewards' },
     { bucket: 'ignored', section: 'rewards vault' },
     { bucket: 'ignored', section: 'season board' },
     { bucket: 'ignored', section: 'trophy hall' },
-    // Career, Spirit and relationship tasks are deliberately not scored.
-    // Explicit stat labels (The Realm).
-    { bucket: 'ignored', label: 'Profesie' },
-    { bucket: 'ignored', label: 'Duty' },
+    // Body: explicit labels, sections and projects.
     { bucket: 'body', label: 'Body' },
-    { bucket: 'mind', label: 'Mind' },
-    { bucket: 'upkeep', label: 'Upkeep' },
-    { bucket: 'ignored', label: 'Spirit' },
-    // Relationships are deliberately not scored.
-    { bucket: 'ignored', label: 'Bonds' },
-    // Older / topical labels.
     { bucket: 'body', label: 'Health' },
-    { bucket: 'ignored', label: 'MentalHealth' },
-    { bucket: 'ignored', label: 'Scribe' },
-    { bucket: 'ignored', label: 'Friends' },
-    { bucket: 'ignored', label: 'family' },
-    ...['Licenta', 'Barou', 'Civil', 'Penal', 'ProcCivila', 'ProcPenala', 'Grile'].map(
-      (label) => ({ bucket: 'mind' as const, label }),
-    ),
-    // Sections (The Realm + The Town share names).
-    { bucket: 'mind', section: 'library' },
     { bucket: 'body', section: 'barracks' },
-    { bucket: 'upkeep', section: 'keep' },
-    { bucket: 'upkeep', section: 'castle' },
-    { bucket: 'ignored', section: 'tavern' },
-    { bucket: 'ignored', section: 'bonfire' },
-    { bucket: 'ignored', section: 'chancery' },
-    { bucket: 'ignored', section: 'war' },
-    // Whole projects.
     { bucket: 'body', project: 'sport' },
-    { bucket: 'mind', project: 'barou' },
-    // Keywords (Romanian + English) for Inbox and unlabelled tasks.
-    { bucket: 'body', keywords: ['antrenament', 'sala', 'gym', 'alerg', 'run', 'pull', 'push', 'flotari', 'tractiun', 'calistenic', 'squat', 'genuflexiun', 'plank', 'handstand', 'muscle', 'workout', 'inot', 'swim', 'bicicl'] },
-    { bucket: 'mind', keywords: ['citeste', 'citit', 'invata', 'studiu', 'studia', 'curs', 'examen', 'seminar', 'licent', 'carte', 'read', 'study', 'lectur', 'fisa', 'recapitul', 'grile'] },
-    { bucket: 'upkeep', keywords: ['curat', 'spala', 'aspira', 'vase', 'rufe', 'calca', 'gunoi', 'plante', 'cumparatur', 'clean', 'laundry', 'ordine', 'dulap', 'frigider', 'tuns'] },
-    { bucket: 'ignored', keywords: ['ziua', 'cadou', 'suna', 'intalnire', 'prieten', 'familie', 'mama', 'tata', 'bunic', 'party', 'petrecere', 'botez', 'nunta', 'vizita'] },
+    // Everything that is clearly something else.
+    ...['Mind', 'Upkeep', 'Spirit', 'Duty', 'Profesie', 'Bonds', 'Friends', 'family', 'MentalHealth', 'Scribe',
+      'Licenta', 'Barou', 'Civil', 'Penal', 'ProcCivila', 'ProcPenala', 'Grile'].map((label) => ({ bucket: 'ignored' as const, label })),
+    ...['library', 'keep', 'castle', 'tavern', 'bonfire', 'chancery', 'war'].map((section) => ({ bucket: 'ignored' as const, section })),
+    { bucket: 'ignored', project: 'barou' },
+    // Keywords (Romanian + English) for the Inbox and unlabelled tasks.
+    { bucket: 'body', keywords: ['antrenament', 'sala', 'gym', 'alerg', 'run', 'pull', 'push', 'flotari', 'tractiun', 'calistenic', 'squat', 'genuflexiun', 'plank', 'handstand', 'muscle', 'workout', 'inot', 'swim', 'bicicl', 'stretch', 'mobilitate', 'yoga'] },
   ],
 };
