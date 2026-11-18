@@ -17,8 +17,8 @@ export function Character({ state }: { state: CharacterState }) {
         <p className="muted">{state.archetype.blurb}</p>
         <div className="level">
           <strong>Level {state.level}</strong>
-          <span className="muted"> · {Math.round(state.totalXp).toLocaleString('en')} XP total</span>
-          <div className="bar"><div className="bar__fill" style={{ width: `${state.levelProgress * 100}%` }} /></div>
+          <span className="muted"> · {state.milestonesDone} of {state.milestonesTotal} milestones</span>
+          <div className="bar"><div className="bar__fill" style={{ width: `${(state.milestonesDone / Math.max(1, state.milestonesTotal)) * 100}%` }} /></div>
         </div>
       </div>
     </section>

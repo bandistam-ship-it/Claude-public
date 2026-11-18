@@ -1,5 +1,5 @@
 import { get, set, del } from 'idb-keyval';
-import type { CompletionEvent, Profile, TodoistMeta } from './engine/types';
+import type { Claims, CompletionEvent, Profile, TodoistMeta } from './engine/types';
 
 /*
  * Everything stays in this browser. Small settings → localStorage; the completion history
@@ -19,6 +19,8 @@ export interface Settings {
   apiBase: string;
   profile: Profile;
   situation: Situation;
+  /** Milestones you ticked by hand: id -> ISO date. */
+  claims: Claims;
   imbalanceThreshold: number;
   /** Advanced: JSON merged over the default engine config. */
   configOverride: string;
@@ -29,6 +31,8 @@ export const DEFAULT_SETTINGS: Settings = {
   apiBase: '',
   profile: { netWageRon: 0, positionRank: 0 },
   situation: { focus: '', goals: '', notes: '', updatedAt: null },
+  // Told to Claude directly: 10 strict pull-ups and 15 strict dips.
+  claims: { 'body.strength.4': '2026-11-18' },
   imbalanceThreshold: 2,
   configOverride: '',
 };
@@ -44,6 +48,7 @@ export function loadSettings(): Settings {
       ...DEFAULT_SETTINGS, ...s,
       profile: { ...DEFAULT_SETTINGS.profile, ...s.profile },
       situation: { ...DEFAULT_SETTINGS.situation, ...s.situation },
+      claims: s.claims ?? DEFAULT_SETTINGS.claims,
     };
   } catch {
     return DEFAULT_SETTINGS;

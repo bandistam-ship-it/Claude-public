@@ -76,8 +76,8 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy,
 
       <h3>Advanced: engine config</h3>
       <p className="muted small">
-        JSON merged over the defaults (top-level keys), e.g. <code>{'{"difficultyXp": {"easy": 8, "medium": 25, "hard": 60, "boss-fight": 120}}'}</code>.
-        The whole history is re-scored instantly.
+        JSON merged over the defaults (top-level keys), e.g. <code>{'{"needDomainShare": 0.8}'}</code> makes every tier need 4 of 5 domains instead of 3.
+        Everything is recalculated instantly.
       </p>
       <textarea id="config-override" rows={6} value={override} onChange={(e) => setOverride(e.target.value)} spellCheck={false} />
       {overrideError && <p className="error">{overrideError}</p>}

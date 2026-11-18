@@ -88,9 +88,16 @@ export default function App() {
 
   const config = useMemo(() => buildConfig(settings), [settings]);
   const state = useMemo(
-    () => computeState(history.events, history.meta, settings.profile, config),
-    [history, settings.profile, config],
+    () => computeState(history.events, history.meta, settings.profile, config, settings.claims),
+    [history, settings.profile, config, settings.claims],
   );
+
+  const toggleClaim = (id: string) => {
+    const claims = { ...settings.claims };
+    if (claims[id]) delete claims[id];
+    else claims[id] = new Date().toISOString().slice(0, 10);
+    updateSettings({ ...settings, claims });
+  };
 
   const loadDemo = async () => {
     const h = demoHistory();
@@ -141,10 +148,9 @@ export default function App() {
           <Situation
             profile={settings.profile}
             situation={settings.situation}
-            careerGate={state.stats.find((s) => s.def.id === 'career')?.gates.find((g) => g.tier === (state.stats.find((s) => s.def.id === 'career')?.tier ?? 1) + 1)}
             onChange={(profile, situation) => updateSettings({ ...settings, profile, situation })}
           />
-          <Stats state={state} />
+          <Stats state={state} claims={settings.claims} onToggle={toggleClaim} />
           <Feats state={state} />
         </main>
       )}

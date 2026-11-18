@@ -44,10 +44,6 @@ export function matchFeat(ev: CompletionEvent, bucket: Bucket, feat: FeatDef): F
   return 'counted';
 }
 
-export function featBonus(feat: FeatDef, config: EngineConfig): number {
-  return Math.round(config.featBonusPerDecade * Math.log10(1 / feat.rarity));
-}
-
 /**
  * Scan the (chronologically sorted) history for feats. A feat is counted at its first clean,
  * successful completion; if it was only ever done without proof of clean form it is reported
@@ -64,7 +60,7 @@ export function detectFeats(
       if (existing?.status === 'counted') continue;
       const m = matchFeat(event, bucket, feat);
       if (!m) continue;
-      out.set(feat.id, { def: feat, status: m, event, bonusXp: m === 'counted' ? featBonus(feat, config) : 0 });
+      out.set(feat.id, { def: feat, status: m, event });
     }
   }
   return [...out.values()];

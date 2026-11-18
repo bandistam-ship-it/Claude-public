@@ -1,20 +1,9 @@
-import { PROJECT_DEFAULT_DIFFICULTY, REST_PATTERN } from './config';
 import { classify } from './classify';
 import { detectFeats } from './feats';
 import { norm, re } from './text';
 import type {
-  CharacterState,
-  CompletionEvent,
-  DetectedFeat,
-  EngineConfig,
-  Gate,
-  GateStatus,
-  Profile,
-  Requirement,
-  ScoredEvent,
-  StatId,
-  StatState,
-  TodoistMeta,
+  Auto, CharacterState, Claims, CompletionEvent, DetectedFeat, DomainState, EngineConfig,
+  HistoryEntry, MilestoneState, Profile, StatId, StatState, TodoistMeta,
 } from './types';
 
 const DAY_MS = 86_400_000;
@@ -29,24 +18,7 @@ export function dayIndex(iso: string): number {
 /** Monday-based week number (1970-01-01 was a Thursday). */
 export const weekIndex = (day: number) => Math.floor((day + 3) / 7);
 
-interface Tracker {
-  xp: number;
-  tier: number;
-  texts: string[]; // normalised task text of every completion in this stat
-  weekCounts: Map<number, number>;
-  dayCounts: Map<number, number>;
-}
-
-interface Ctx {
-  tracker: Tracker;
-  /** Feats counted so far: id -> event time (ms). */
-  counted: Map<string, number>;
-  feats: DetectedFeat[];
-  profile: Profile;
-  config: EngineConfig;
-  now: number;
-}
-
+/** Longest run of consecutive weeks with at least `minPerWeek` completions. */
 export function bestStreak(weekCounts: Map<number, number>, minPerWeek: number): number {
   const weeks = [...weekCounts.entries()].filter(([, n]) => n >= minPerWeek).map(([w]) => w).sort((a, b) => a - b);
   let best = 0;
@@ -60,74 +32,81 @@ export function bestStreak(weekCounts: Map<number, number>, minPerWeek: number):
   return best;
 }
 
-function evalRequirement(req: Requirement, ctx: Ctx): { ok: boolean; text: string } {
-  const { tracker, config, profile } = ctx;
-  switch (req.type) {
-    case 'feat': {
-      const def = config.feats.find((f) => f.id === req.featId);
-      const name = def?.name ?? req.featId;
-      const at = ctx.counted.get(req.featId);
-      if (at !== undefined && at <= ctx.now) return { ok: true, text: `✓ ${name}` };
-      // A rarer feat in the same stat implies this one (a muscle-up implies a pull-up).
-      const harder = def && config.feats.find(
-        (f) => f.stat === def.stat && f.rarity < def.rarity && (ctx.counted.get(f.id) ?? Infinity) <= ctx.now,
-      );
-      if (harder) return { ok: true, text: `✓ ${name} (implied by ${harder.name})` };
-      const pending = ctx.feats.find((f) => f.def.id === req.featId && f.status === 'needs-clean-form');
-      if (pending) return { ok: false, text: `✗ ${name}: found “${pending.event.content}” but no proof of clean form (add the Clean label or say “strict”)` };
-      return { ok: false, text: `✗ ${name}: not yet` };
-    }
-    case 'count': {
-      const n = req.pattern ? tracker.texts.filter((t) => re(req.pattern!).test(t)).length : tracker.texts.length;
-      return { ok: n >= req.min, text: `${n >= req.min ? '✓' : '✗'} ${Math.min(n, req.min)}/${req.min} matching tasks` };
-    }
-    case 'streak': {
-      const best = bestStreak(tracker.weekCounts, req.minPerWeek);
-      return {
-        ok: best >= req.weeks,
-        text: `${best >= req.weeks ? '✓' : '✗'} best run ${best}/${req.weeks} weeks with ≥${req.minPerWeek}/week`,
-      };
-    }
-    case 'wage': {
-      const ok = profile.netWageRon >= req.minNetRon;
-      return { ok, text: `${ok ? '✓' : '✗'} wage ${profile.netWageRon.toLocaleString('en')} / ${req.minNetRon.toLocaleString('en')} RON net` };
-    }
-    case 'position': {
-      const ok = profile.positionRank >= req.minRank;
-      const p = config.career.positions;
-      return { ok, text: `${ok ? '✓' : '✗'} position: ${p[profile.positionRank] ?? '?'} (needs ${p[req.minRank]})` };
+interface StatTasks { entries: { week: number; text: string }[] }
+
+interface Ctx {
+  tasks: Record<StatId, StatTasks>;
+  feats: Map<string, DetectedFeat>;
+  profile: Profile;
+}
+
+function evalAuto(a: Auto, stat: StatId, ctx: Ctx): boolean {
+  if ('all' in a) return a.all.every((x) => evalAuto(x, stat, ctx));
+  if ('any' in a) return a.any.some((x) => evalAuto(x, stat, ctx));
+  if ('feat' in a) return ctx.feats.get(a.feat)?.status === 'counted';
+  if ('wage' in a) return ctx.profile.netWageRon >= a.wage;
+  if ('position' in a) return ctx.profile.positionRank >= a.position;
+  const entries = ctx.tasks[stat].entries;
+  if ('count' in a) {
+    const { min, pattern } = a.count;
+    const n = pattern ? entries.filter((e) => re(pattern).test(e.text)).length : entries.length;
+    return n >= min;
+  }
+  const { weeks, perWeek, pattern } = a.streak;
+  const wc = new Map<number, number>();
+  for (const e of entries) if (!pattern || re(pattern).test(e.text)) wc.set(e.week, (wc.get(e.week) ?? 0) + 1);
+  return bestStreak(wc, perWeek) >= weeks;
+}
+
+/** First feat in an auto rule that was found in the history but not accepted (needs clean form). */
+function pendingNote(a: Auto | undefined, ctx: Ctx): string | undefined {
+  if (!a) return undefined;
+  if ('all' in a) return a.all.map((x) => pendingNote(x, ctx)).find(Boolean);
+  if ('any' in a) return a.any.map((x) => pendingNote(x, ctx)).find(Boolean);
+  if ('feat' in a) {
+    const f = ctx.feats.get(a.feat);
+    if (f?.status === 'needs-clean-form') {
+      return `Found “${f.event.content}” but no proof of clean form. Add the Clean label in Todoist, or tick it here.`;
     }
   }
+  return undefined;
 }
 
-function evalGate(gate: Gate, ctx: Ctx): { ok: boolean; detail: string[] } {
-  const all = (gate.all ?? []).map((r) => evalRequirement(r, ctx));
-  const any = (gate.any ?? []).map((r) => evalRequirement(r, ctx));
-  const ok = all.every((r) => r.ok) && (any.length === 0 || any.some((r) => r.ok));
-  const detail = [...all.map((r) => r.text), ...(any.length ? [`one of: ${any.map((r) => r.text).join('  |  ')}`] : [])];
-  return { ok, detail };
+/**
+ * Tier T needs at least `share` of the domains at level T or above, and no domain below T-1.
+ * A neglected domain caps the whole stat, so a high tier means being well-rounded.
+ */
+export function tierFromLevels(levels: number[], share: number): number {
+  const need = Math.ceil(levels.length * share);
+  for (let t = 7; t >= 2; t--) {
+    const reached = levels.filter((l) => l >= t).length;
+    if (reached >= need && levels.every((l) => l >= t - 1)) return t;
+  }
+  return 1;
 }
 
-export function xpTierOf(xp: number, config: EngineConfig): number {
-  let t = 1;
-  for (let i = 1; i < config.tierXp.length; i++) if (xp >= config.tierXp[i]) t = i + 1;
-  return t;
+function progressToNext(levels: number[], tier: number, share: number, names: string[]): { progress: number; needs: string[] } {
+  if (tier >= 7) return { progress: 1, needs: [] };
+  const next = tier + 1;
+  const need = Math.ceil(levels.length * share);
+  const reached = levels.filter((l) => l >= next).length;
+  const behind = levels.map((l, i) => ({ l, n: names[i] })).filter((d) => d.l < tier);
+  // A: how close the best `need` domains are to level `next`. B: how close the rest are to not lagging.
+  const top = [...levels].sort((a, b) => b - a).slice(0, need);
+  const a = top.reduce((sum, l) => sum + (Math.min(l, next) - 1) / (next - 1), 0) / need;
+  const b = next >= 3 ? levels.reduce((sum, l) => sum + (Math.min(l, next - 1) - 1) / (next - 2), 0) / levels.length : 1;
+  const progress = next >= 3 ? (a + b) / 2 : a;
+  const needs: string[] = [];
+  for (const d of behind) needs.push(`${d.n} is holding you back: reach level ${tier}`);
+  if (reached < need) {
+    const closest = levels.map((l, i) => ({ l, n: names[i] })).filter((d) => d.l < next && d.l >= tier).map((d) => d.n);
+    const k = need - reached;
+    needs.push(`Raise ${k} more domain${k > 1 ? 's' : ''} to level ${next}: ${closest.join(', ')}`);
+  }
+  return { progress, needs };
 }
 
-/** Cumulative XP to reach overall level L (L1 = 0). Steep on purpose. */
-export const levelXp = (level: number) => Math.round(100 * Math.pow(level - 1, 1.7));
-
-export function levelOf(totalXp: number): { level: number; progress: number } {
-  let level = 1;
-  while (levelXp(level + 1) <= totalXp) level++;
-  const lo = levelXp(level);
-  const hi = levelXp(level + 1);
-  return { level, progress: (totalXp - lo) / (hi - lo) };
-}
-
-const ARCHETYPE_EMOJI: Record<StatId, string> = {
-  body: '🦍', mind: '🧐', upkeep: '🧹', spirit: '🔮', career: '💼',
-};
+const ARCHETYPE_EMOJI: Record<StatId, string> = { body: '🦍', mind: '🧐', upkeep: '🧹', spirit: '🔮', career: '💼' };
 
 export function archetypeOf(stats: StatState[], config: EngineConfig): CharacterState['archetype'] {
   const tiers = stats.map((s) => s.tier);
@@ -136,158 +115,85 @@ export function archetypeOf(stats: StatState[], config: EngineConfig): Character
   if (max <= 2) return { name: 'Basement Nerd', emoji: '🤓', blurb: 'Frail, unfit, not very bright, sitting in a messy room.' };
   if (min >= 4 && max - min <= 1) return { name: 'Renaissance Hero', emoji: '🦸', blurb: 'Strong, sharp, at peace, and his house is in order.' };
   if (max - min >= config.imbalanceThreshold) {
-    const top = stats.filter((s) => s.tier === max).sort((a, b) => b.xp - a.xp)[0];
+    const top = stats.filter((s) => s.tier === max)[0];
     return { ...top.def.archetype, emoji: ARCHETYPE_EMOJI[top.def.id] };
   }
   return { name: 'Wandering Adventurer', emoji: '🧭', blurb: 'Rounded, still finding his way.' };
 }
 
+export const milestoneId = (stat: StatId, domain: string, level: number) => `${stat}.${domain}.${level}`;
+
 /**
- * Replay the whole history in order and derive the character. Pure and deterministic:
- * the same events + config always give the same character, so tuning a number in
- * Settings simply re-runs this.
+ * Derive the character from your history, ticked milestones and profile. Pure and deterministic.
+ * There is no XP: a milestone is either done (detected from your tasks, or ticked by you) or not.
  */
 export function computeState(
   rawEvents: CompletionEvent[],
   meta: TodoistMeta,
   profile: Profile,
   config: EngineConfig,
+  claims: Claims = {},
 ): CharacterState {
   const byId = new Map(rawEvents.map((e) => [e.id, e]));
   const events = [...byId.values()].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
-
   const classified = events.map((event) => ({ event, ...classify(event, meta, config) }));
-  const feats = detectFeats(classified, config);
-  const countedAt = new Map<string, number>();
-  const featByEvent = new Map<string, DetectedFeat[]>();
-  for (const f of feats) {
-    if (f.status !== 'counted') continue;
-    countedAt.set(f.def.id, Date.parse(f.event.completedAt));
-    featByEvent.set(f.event.id, [...(featByEvent.get(f.event.id) ?? []), f]);
-  }
+  const feats = new Map(detectFeats(classified, config).map((f) => [f.def.id, f]));
 
-  const taskTimes = new Map<string, number[]>();
-  for (const e of events) taskTimes.set(e.taskId, [...(taskTimes.get(e.taskId) ?? []), Date.parse(e.completedAt)]);
-
-  const trackers = new Map<StatId, Tracker>(
-    config.stats.map((s) => [s.id, { xp: 0, tier: 1, texts: [], weekCounts: new Map(), dayCounts: new Map() }]),
-  );
-  const counted = new Map<string, number>();
-  let neutralXp = 0;
-  const scored: ScoredEvent[] = [];
-
-  const advanceTiers = (now: number) => {
-    for (const [stat, tr] of trackers) {
-      const gates = config.gates[stat];
-      while (tr.tier < 7 && tr.xp >= config.tierXp[tr.tier]) {
-        const ctx: Ctx = { tracker: tr, counted, feats, profile, config, now };
-        if (!evalGate(gates[tr.tier - 1], ctx).ok) break;
-        tr.tier++;
-      }
-    }
-  };
-
+  const tasks = Object.fromEntries(config.stats.map((s) => [s.id, { entries: [] }])) as unknown as Ctx['tasks'];
+  const history: HistoryEntry[] = [];
   for (const { event, bucket, reason } of classified) {
-    const t = Date.parse(event.completedAt);
-    const day = dayIndex(event.completedAt);
-    const result: ScoredEvent = { event, bucket, reason, xp: 0, breakdown: '' };
-
-    if (bucket === 'ignored') {
-      result.breakdown = 'not scored';
-    } else if (bucket === 'neutral') {
-      result.xp = config.neutralXp;
-      result.breakdown = `neutral ${config.neutralXp}`;
-      neutralXp += config.neutralXp;
-    } else {
-      const tr = trackers.get(bucket)!;
-      const text = norm(event.content);
-      tr.texts.push(text);
-      const week = weekIndex(day);
-      tr.weekCounts.set(week, (tr.weekCounts.get(week) ?? 0) + 1);
-
-      const parentDone = event.parentId && (taskTimes.get(event.parentId) ?? []).some((p) => Math.abs(p - t) < DAY_MS);
-      if (parentDone) {
-        result.breakdown = 'part of a session (the parent task carries the XP)';
-      } else {
-        const diffLabel = event.labels.map((l) => l.toLowerCase()).find((l) => l in config.difficultyXp);
-        const projectKey = Object.keys(PROJECT_DEFAULT_DIFFICULTY).find((p) =>
-          norm(meta.projects[event.projectId] ?? '').startsWith(p),
-        );
-        let diff: string | undefined = diffLabel;
-        if (!diff && re(REST_PATTERN).test(text)) diff = 'easy';
-        if (!diff && projectKey) diff = PROJECT_DEFAULT_DIFFICULTY[projectKey];
-        const base = diff ? config.difficultyXp[diff] : config.defaultXp;
-        const level = diff ? config.difficultyLevel[diff] : config.defaultLevel;
-
-        const [lo, hi] = config.durationClamp;
-        const dur = event.durationMin ? Math.min(hi, Math.max(lo, Math.sqrt(event.durationMin / 60))) : 1;
-        const challenge = level >= tr.tier ? 1 : Math.pow(config.challengeDecay, tr.tier - level);
-        const doneToday = tr.dayCounts.get(day) ?? 0;
-        const daily = doneToday >= config.dailySoftCap ? config.dailyOverCapFactor : 1;
-        tr.dayCounts.set(day, doneToday + 1);
-
-        result.xp = Math.max(1, Math.round(base * dur * challenge * daily));
-        result.breakdown = [
-          `${diff ? diff[0].toUpperCase() + diff.slice(1) : 'Unlabelled'} ${base}`,
-          dur !== 1 ? `× duration ${dur.toFixed(2)}` : '',
-          challenge !== 1 ? `× challenge ${challenge.toFixed(2)} (tier ${tr.tier} vs task level ${level})` : '',
-          daily !== 1 ? `× ${daily} (over ${config.dailySoftCap}/day)` : '',
-        ].filter(Boolean).join(' ');
-        tr.xp += result.xp;
-      }
-    }
-
-    // One-off feat bonuses land in the feat's own stat.
-    for (const f of featByEvent.get(event.id) ?? []) {
-      counted.set(f.def.id, t);
-      trackers.get(f.def.stat)!.xp += f.bonusXp;
-      result.xp += f.bonusXp;
-      result.breakdown += ` + feat “${f.def.name}” ${f.bonusXp}`;
-    }
-
-    scored.push(result);
-    advanceTiers(t);
+    history.push({ event, bucket, reason });
+    if (bucket === 'ignored' || bucket === 'neutral') continue;
+    tasks[bucket as StatId].entries.push({ week: weekIndex(dayIndex(event.completedAt)), text: norm(event.content) });
   }
+  const ctx: Ctx = { tasks, feats, profile };
 
-  const now = Date.now();
+  let done = 0;
+  let total = 0;
   const stats: StatState[] = config.stats.map((def) => {
-    const tr = trackers.get(def.id)!;
-    const ctx: Ctx = { tracker: tr, counted, feats, profile, config, now };
-    const gates: GateStatus[] = config.gates[def.id].map((g, i) => {
-      const r = evalGate(g, ctx);
-      return { tier: i + 2, passed: r.ok, text: g.text, detail: r.detail };
+    const domains: DomainState[] = config.domains[def.id].map((d) => {
+      const milestones: MilestoneState[] = d.ladder.map((ml, i) => {
+        const level = i + 2;
+        const id = milestoneId(def.id, d.id, level);
+        const claimedAt = claims[id];
+        const auto = !claimedAt && ml.auto ? evalAuto(ml.auto, def.id, ctx) : false;
+        const state: MilestoneState = {
+          id, level, text: ml.text,
+          achieved: Boolean(claimedAt) || auto,
+          source: claimedAt ? 'claimed' : auto ? 'auto' : null,
+          claimedAt,
+        };
+        if (!state.achieved) state.note = pendingNote(ml.auto, ctx);
+        return state;
+      });
+      // Highest achieved rung; lower rungs are implied.
+      const level = milestones.reduce((lv, ms) => (ms.achieved ? Math.max(lv, ms.level) : lv), 1);
+      for (const ms of milestones) {
+        if (!ms.achieved && ms.level < level) { ms.achieved = true; ms.source = 'implied'; ms.note = undefined; }
+        total++;
+        if (ms.achieved) done++;
+      }
+      return { def: d, level, milestones };
     });
-    const xpTier = xpTierOf(tr.xp, config);
-    const tier = tr.tier;
-    const nextTierXp = tier < 7 ? config.tierXp[tier] : null;
-    const lo = config.tierXp[tier - 1];
-    const progress = nextTierXp === null ? 1 : Math.min(1, Math.max(0, (tr.xp - lo) / (nextTierXp - lo)));
+    const levels = domains.map((d) => d.level);
+    const tier = tierFromLevels(levels, config.needDomainShare);
+    const { progress, needs } = progressToNext(levels, tier, config.needDomainShare, domains.map((d) => d.def.name));
     return {
-      def,
-      xp: tr.xp,
-      xpTier,
-      tier,
-      title: def.tiers[tier - 1],
-      nextTierXp,
-      progress,
-      gateLocked: xpTier > tier,
-      gates,
-      completions: tr.texts.length,
-      bestStreakWeeks: bestStreak(tr.weekCounts, 1),
+      def, tier, title: def.tiers[tier - 1], domains,
+      completions: tasks[def.id].entries.length,
+      nextTitle: tier < 7 ? def.tiers[tier] : null,
+      progress, nextNeeds: needs,
     };
   });
 
-  const totalXp = stats.reduce((s, x) => s + x.xp, 0) + neutralXp;
-  const { level, progress: levelProgress } = levelOf(totalXp);
   return {
     stats,
-    neutralXp,
-    totalXp,
-    level,
-    levelProgress,
+    level: stats.reduce((s, x) => s + x.tier, 0) - (stats.length - 1),
+    milestonesDone: done,
+    milestonesTotal: total,
     archetype: archetypeOf(stats, config),
-    feats,
-    scored,
+    feats: [...feats.values()],
+    history,
   };
 }
 

@@ -1,109 +1,88 @@
 # Progression criteria
 
-**XP measures effort; tiers measure what you can actually do.** A stat enters tier *n* only when
-its XP reaches the threshold **and** the gate for tier *n* is passed (hard gates). Gates must be
-passed in order, but a rarer feat implies the easier ones in the same stat (a clean muscle-up
-implies a pull-up).
+There is **no XP**. Progress is milestones: concrete things you have done or can do.
 
-## XP per completed task
+## How a tier is decided
 
-`XP = difficulty × duration × challenge × daily cap` (+ a one-off feat bonus)
+Each stat (Body, Mind, Upkeep, Spirit, Career) is judged on **five domains**. Each domain is a
+ladder of **six milestones** for levels 2–7, so a stat has 30 milestones. A domain's level is the
+highest milestone reached (the rungs below it are implied).
 
-| Criterion | Rule | Why |
-|---|---|---|
-| Difficulty | Easy 10 · Medium 25 · Hard 50 · Boss-fight 100. Unlabelled: 10, Sport sessions Medium, rest days Easy, neutral tasks 5 | Your own estimate of the effort |
-| Duration | × √hours, clamped to 0.5–2 | 3h of study > 30 min, but not 6× more |
-| Challenge | Task trains at a level (Easy 2, Medium 4, Hard 5, Boss 7). Below your tier: × 0.6 per tier of gap | Beginners improve from anything; advanced people only from work at their level |
-| Session | Subtasks of a parent completed the same day earn 0 | One workout is one workout |
-| Daily cap | Over 4 completions in one stat on the same day: × 0.5 | Anti-farming |
-| Feat bonus | 50 × log₁₀(1 / rarity): 1 in 10 → 50, 1 in 100 → 100, 1 in 1,000 → 150 | Rare achievements should feel rare |
-| Priority | Not used | Your choice |
+A stat reaches **tier T** when
+1. at least **3 of its 5 domains** are at level T or above, **and**
+2. **no domain is below level T−1.**
 
-## Tier XP (cumulative)
+So being elite at one thing barely helps. A 7 in pull-ups and a 1 in everything else is still a
+tier-1 body. **Legendary (T7)** needs every domain at level 6 or higher and three at level 7.
 
-| Tier | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---|---|---|---|---|---|
-| XP | 300 | 1,200 | 4,000 | 12,000 | 32,000 | 80,000 |
-| At ~150 XP/week | ~2 wk | ~2 mo | ~6 mo | ~1.5 yr | ~4 yr | ~10 yr |
+A milestone counts when it is **detected from your Todoist history** or **ticked by you** (the
+checkbox in the app). Auto-detected body feats need proof of clean form: "strict" or "clean" in the
+task, or the `Clean` label. Banded, assisted, negative, jumping and "attempt" or "test" tasks never
+count.
 
-## Gates
+**Overall level** = the sum of the five tiers, shifted so five tier-1 stats are level 1 (range 1–31).
 
-### Body: feats, clean form only
-Detected automatically from completed tasks. A set like "Strict pull-ups – 2x4" proves 4
-pull-ups. Banded/assisted, negatives, jumping, drills, "attempts" and "tests" never count. A
-body feat counts only if the task says **strict** or **clean**, or carries the **`Clean`** label.
+## The ladders
 
-| Tier | Gate | Share of adults (estimate) |
-|---|---|---|
-| 2 Weak | 10 push-ups | ~50% |
-| 3 Average | First strict pull-up | ~25% |
-| 4 Fit | 10 strict pull-ups **and** 15 dips | ~5–10% |
-| 5 Athletic | First clean muscle-up | ~1–2% |
-| 6 Powerful | Strict handstand push-up **or** front lever | <0.5% |
-| 7 Legendary | One-arm pull-up **or** full planche | <0.05% |
+Percentages are rough estimates of how common each milestone is among adults. They calibrate the
+difficulty and are placeholders until replaced with sourced data. The full wording of every
+milestone is in [`src/engine/catalog.ts`](../src/engine/catalog.ts); the headline rungs:
 
-### Mind: education milestones
-Milestones are completed tasks labelled Achievement/Boss-fight (or "primul/first") that state the
-result, e.g. "Licență susținută", "Admis la Barou".
-
-| Tier | Gate |
+### Body: a bit of everything that is health
+| Domain | L2 → L7 |
 |---|---|
-| 2 Curious | 10 study/reading tasks |
-| 3 Informed | Enrolled in higher education (5+ university tasks) |
-| 4 Smart | Licență obtained |
-| 5 Scholar | Barou admission **or** C1 language certificate |
-| 6 Sage | Master's **or** PhD |
-| 7 Genius | Published, recognised original work |
+| Strength | 10 push-ups · first strict pull-up · 10 strict pull-ups + 15 strict dips · first strict muscle-up · strict HSPU or front lever · one-arm pull-up or planche |
+| Endurance | 5 km non-stop walk/jog · run 5 km · 5 km < 30:00 · 10 km < 55:00 or half marathon · half < 1:45 or a marathon · marathon < 3:30 |
+| Mobility & balance | toe touch · 1 min deep squat · 2 min squat + 60 s wall handstand · front split · 30 s freestanding handstand · full splits + 60 s handstand |
+| Body & nutrition | measure monthly · waist < 0.55 height · < 0.5 for 6 months · 1 year + home cooking · athletic body fat 6 months · 2 years with tracked nutrition |
+| Sleep & preventive care | dentist · annual blood tests · 7–9 h sleep for 4 weeks · 90 days + no smoking · a year + vaccines · three years, resting HR < 60 |
 
-### Career (= Duty): wage **and** position, both required
-Wage and position are entered in Settings (Todoist can't know them). Net monthly wages in RON; in
-brackets, the rough global equivalent in 2021 PPP dollars (ILO).
-
-| Tier | Net wage | Share of RO employees | Position |
-|---|---|---|---|
-| 2 Apprentice | 2,699 (minimum wage from 1 Jul 2026) | most; ~40% earn near the minimum (≈ $1,900, about the global average of $1,728) | First job / internship |
-| 3 Journeyman | 4,300 (≈ median, estimate) | ~50% (≈ $3,200) | Trainee lawyer (avocat stagiar) |
-| 4 Professional | 5,717 (national average, Sep 2026) | ~30%, estimate (≈ $4,150, the global top-10% line) | Qualified lawyer (avocat definitiv) |
-| 5 Expert | 10,000 | ~5% (≈ $7,500) | Own practice / senior associate |
-| 6 Partner | 20,000 | ~1%, estimate (≈ $15,000) | Partner |
-| 7 Magnate | 40,000 | ~0.1%, estimate (≈ $30,000) | Managing partner / authority |
-
-### Upkeep, Spirit: consistency
-Habits take ~66 days (≈ 10 weeks) to form on average (Lally et al., 2010).
-
-| Tier | Gate |
+### Mind: how educated you are, all-round
+| Domain | L2 → L7 |
 |---|---|
-| 2 | 3 tasks done |
-| 3 | Every week for 4 weeks in a row |
-| 4 | Every week for 10 weeks (~66 days) |
-| 5 | Twice a week for 13 weeks (~90 days). Spirit also needs a finished creative work |
-| 6 | Twice a week for 26 weeks |
-| 7 | Twice a week for 52 weeks |
+| Formal education | bacalaureat · enrolled · licență · master's or Bar admission · doctorate / second master's · scholarly contribution |
+| Languages | A2 · B2 · C1 + B1 in a third · C1 ×2 + B2 · C2 + C1 · four languages at C1+ |
+| Reading & breadth | 6 books/yr · 12 · 24 across 3 fields · 100 lifetime across five fields · 250 across six · 500 with 50 reviews |
+| Science & numeracy | percentages and graphs · statistics or logic course · calculus and programming · analysed a dataset · built something others use · original research or teaching |
+| Writing & reasoning | one-page argument · write weekly for 12 weeks · 10-minute talk · 5,000-word text · publish an essay · publish a book or paper |
 
-## Not scored
-Relationships (Bonds/Friends/family labels, the Tavern section, social keywords) are deliberately
-not scored: they earn no XP of any kind. Neither do rewards and reference cards.
+### Upkeep: running a home and a life
+Cleanliness & order (habit streaks: 4 weeks → a year, detected from your tasks) · Cooking · Repairs &
+DIY · Household admin · Plants, pets & space.
+
+### Spirit: the inner life
+Mental health (therapy or journaling streaks) · Creative practice · Stillness & reflection ·
+Discipline & resilience · Culture & awe.
+
+### Career: work, money and reliability
+| Domain | L2 → L7 |
+|---|---|
+| Income (net RON/month, from your profile) | 2,699 minimum wage · 4,300 median · 5,717 average · 10,000 · 20,000 · 40,000 |
+| Role & seniority (from your profile) | first job · trainee lawyer · qualified lawyer · own practice / senior associate · partner · managing partner |
+| Credentials & craft | course · licență · Bar admission · specialisation · recognised specialist · leader of the field |
+| Financial security | track spending · 3-month emergency fund · no debt + 6 months · invest 2 years · 5 years of expenses · financial independence (25×) |
+| Paperwork & reliability | admin and career task counts and weekly streaks, from your tasks |
+
+Habit ladders use ~66 days (about 10 weeks) as the point where a habit is formed on average
+(Lally et al., 2010). Relationships are deliberately not scored.
 
 ## Archetype
-Tier gap between the highest and lowest stat, compared with the imbalance threshold (default 2):
-- All tiers ≤ 2 → **Basement Nerd**
-- All tiers ≥ 4 and gap ≤ 1 → **Renaissance Hero**
-- Gap ≥ threshold → the dominant stat's archetype: Dumb Brute (Body), Frail Bookworm (Mind),
+Tier gap between the highest and lowest stat, against the imbalance threshold (default 2):
+- all tiers ≤ 2 → **Basement Nerd**
+- all tiers ≥ 4 and gap ≤ 1 → **Renaissance Hero**
+- gap ≥ threshold → the dominant stat's archetype: Dumb Brute (Body), Frail Bookworm (Mind),
   Obsessive Housekeeper (Upkeep), Lost Mystic (Spirit), Workaholic (Career)
-- Otherwise → **Wandering Adventurer**
+- otherwise → **Wandering Adventurer**
 
 ## Data quality and sources
 - Solid: Romanian minimum and average wage (INS releases); ILO global wage figures.
-- Estimates, to be replaced with sourced data: the RO median and wage shares (INS doesn't publish
-  a monthly median), all body-feat prevalences, education shares, and the PPP conversion (~1.95 RON
-  per international $, third-party figure).
+- Estimates, to be replaced with sourced data: every "1 in N" figure, the Romanian median and
+  wage shares, and the PPP conversion (~1.95 RON per international $, a third-party figure).
 
 Sources:
-- INS average net wage, Sep 2026: [Știrile ProTV](https://stirileprotv.ro/stiri/financiar/salariul-mediu-net-a-ajuns-la-5-717-lei-in-septembrie-2026-ce-domenii-ofera-cele-mai-mari-castiguri-in-romania.html), [Digi24](https://www.digi24.ro/stiri/economie/salariul-mediu-net-a-crescut-la-5-717-lei-dar-nu-a-tinut-pasul-cu-inflatia-cat-a-pierdut-puterea-de-cumparare-4032903)
+- INS average net wage, Sep 2026: [Știrile ProTV](https://stirileprotv.ro/stiri/financiar/salariul-mediu-net-a-ajuns-la-5-717-lei-in-septembrie-2026-ce-domenii-ofera-cele-mai-mari-castiguri-in-romania.html)
 - Minimum wage 4,325 gross / 2,699 net from 1 Jul 2026: [Capital](https://www.capital.ro/guvernul-a-aprobat-cresterea-salariului-minim-se-vor-plati-4-325-de-lei-brut-din-1-iulie-cat-este-majorarea-neta.html)
-- ~40% earn near the minimum wage: [Romania Insider](https://www.romania-insider.com/romanian-employees-minimum-wage-august-2025)
+- About 40% earn near the minimum wage: [Romania Insider](https://www.romania-insider.com/romanian-employees-minimum-wage-august-2025)
 - 5.5% earn over 10,000 RON (eJobs survey): [Romania Insider](https://www.romania-insider.com/ejobs-highest-paid-employees-romania-2023)
-- Median estimates: [Undelucram](https://www.undelucram.ro/en/cumlucram/the-minimum-wage-has-increased-as-of-july-1st-but-how-much-do-most-romanian-employees-actually-earn-2392)
 - ILO Global Wage Report 2024–25: [PDF](https://www.ilo.org/sites/default/files/2024-11/GWR-2024_Layout_E_RGB_Web.pdf)
-- PPP conversion factor: [World Bank](https://data.worldbank.org/indicator/PA.NUS.PPP?t=0), [historysaid](https://historysaid.com/compare/romania-vs-st-kitts-and-nevis/ppp-conversion-factor)
 - Habit formation: Lally, P. et al. (2010), *How are habits formed*, European Journal of Social Psychology 40(6).

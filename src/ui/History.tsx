@@ -9,13 +9,14 @@ export function History({ state }: { state: CharacterState }) {
   const [filter, setFilter] = useState<Bucket | 'all'>('all');
   const [limit, setLimit] = useState(50);
   const rows = useMemo(() => {
-    const all = [...state.scored].reverse();
+    const all = [...state.history].reverse();
     return filter === 'all' ? all : all.filter((r) => r.bucket === filter);
-  }, [state.scored, filter]);
+  }, [state.history, filter]);
 
   return (
     <section className="panel">
       <h2>History</h2>
+      <p className="muted small">Completed tasks and where each one counts. Streak and count milestones are read from here.</p>
       <div className="chips">
         {(['all', 'body', 'mind', 'upkeep', 'spirit', 'career', 'neutral', 'ignored'] as const).map((b) => (
           <button key={b} className={filter === b ? 'chip chip--on' : 'chip'} onClick={() => setFilter(b)}>
@@ -30,10 +31,9 @@ export function History({ state }: { state: CharacterState }) {
             <span className="history__main">
               <span className="history__content">{r.event.content}</span>
               <span className="muted small">
-                {new Date(r.event.completedAt).toLocaleDateString('en-GB')} · {r.reason} · {r.breakdown}
+                {new Date(r.event.completedAt).toLocaleDateString('en-GB')} · {r.reason}
               </span>
             </span>
-            <span className="history__xp">{r.xp > 0 ? `+${r.xp}` : '0'}</span>
           </li>
         ))}
       </ul>

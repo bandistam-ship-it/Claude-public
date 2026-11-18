@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { DEFAULT_CONFIG } from '../engine/config';
-import type { Profile, StatState } from '../engine/types';
+import type { Profile } from '../engine/types';
 import type { Situation as Sit } from '../store';
 
 interface Props {
   profile: Profile;
   situation: Sit;
-  careerGate?: StatState['gates'][number];
   onChange: (profile: Profile, situation: Sit) => void;
 }
 
 /** "Where I am now": what Todoist can't know. Career tiers read the position and wage from here. */
-export function Situation({ profile, situation, careerGate, onChange }: Props) {
+export function Situation({ profile, situation, onChange }: Props) {
   const [editing, setEditing] = useState(false);
   const empty = !situation.focus && !situation.goals && !situation.notes && !profile.netWageRon && profile.positionRank === 0;
   const position = DEFAULT_CONFIG.career.positions[profile.positionRank] ?? '?';
@@ -48,10 +47,10 @@ export function Situation({ profile, situation, careerGate, onChange }: Props) {
             <textarea id="sit-notes" rows={3} value={situation.notes} placeholder="Anything the numbers can't show"
               onChange={(e) => setSit({ notes: e.target.value })} />
           </label>
-          <p className="muted small">Saved on this device only. Position and wage set your Career tier; both are required for each tier.</p>
+          <p className="muted small">Saved on this device only. Your Career income and role milestones read the position and wage.</p>
         </div>
       ) : empty ? (
-        <p className="muted">Nothing here yet. Add your position, wage, current focus and goals with Edit. Career tiers need your position and wage.</p>
+        <p className="muted">Nothing here yet. Add your position, wage, current focus and goals with Edit. Your income and role milestones read these.</p>
       ) : (
         <dl className="situation__list">
           <dt>Position</dt><dd>{position}</dd>
@@ -59,7 +58,6 @@ export function Situation({ profile, situation, careerGate, onChange }: Props) {
           {situation.focus && (<><dt>Focus</dt><dd>{situation.focus}</dd></>)}
           {situation.goals && (<><dt>Goals</dt><dd className="situation__text">{situation.goals}</dd></>)}
           {situation.notes && (<><dt>Notes</dt><dd className="situation__text">{situation.notes}</dd></>)}
-          {careerGate && !careerGate.passed && (<><dt>Next career gate</dt><dd>{careerGate.text}</dd></>)}
         </dl>
       )}
     </section>

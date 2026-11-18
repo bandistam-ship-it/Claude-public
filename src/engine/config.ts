@@ -1,29 +1,11 @@
-import type { EngineConfig, Gate, Requirement } from './types';
+import { DOMAINS } from './catalog';
+import type { EngineConfig } from './types';
 
 /*
- * Default configuration. Every number here is editable; changing it re-scores the whole history.
- *
- * Rarity figures are rough estimates of the share of adults who have a feat. They are
- * placeholders until replaced with sourced data — see docs/CRITERIA.md.
+ * Default configuration: stat names and tier titles, the feats detected from task text, and how
+ * Todoist projects, sections and labels map onto stats. The milestone ladders live in catalog.ts.
+ * Percentages in `rarity` are rough estimates, to be replaced with sourced data (docs/CRITERIA.md).
  */
-
-// Tier 1..7 cumulative XP. At ~150 XP/week in one stat: T2 ≈ 2 wk, T3 ≈ 2 mo, T4 ≈ 6 mo,
-// T5 ≈ 1.5 yr, T6 ≈ 4 yr, T7 ≈ 10 yr — mirroring how long a committed adult needs.
-const TIER_XP = [0, 300, 1200, 4000, 12000, 32000, 80000];
-
-const feat = (featId: string): Requirement => ({ type: 'feat', featId });
-const streak = (weeks: number, minPerWeek: number): Requirement => ({ type: 'streak', weeks, minPerWeek });
-const count = (min: number, pattern?: string): Requirement => ({ type: 'count', min, pattern });
-
-/** Consistency ladder (habit research: ~66 days ≈ 10 weeks to form a habit). */
-const consistencyGates = (noun: string): Gate[] => [
-  { all: [count(3)], text: `3 ${noun} tasks done` },
-  { all: [streak(4, 1)], text: `${noun} every week for 4 weeks in a row` },
-  { all: [streak(10, 1)], text: `${noun} every week for 10 weeks (~66 days, habit formed)` },
-  { all: [streak(13, 2)], text: `${noun} twice a week for 13 weeks (~90 days)` },
-  { all: [streak(26, 2)], text: `${noun} twice a week for 26 weeks (6 months)` },
-  { all: [streak(52, 2)], text: `${noun} twice a week for 52 weeks (a full year)` },
-];
 
 // Shared regex fragments (applied to lower-case text with diacritics stripped).
 const ASSISTED =
@@ -59,44 +41,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
     },
   ],
 
-  tierXp: TIER_XP,
-
-  gates: {
-    body: [
-      { all: [feat('pushups10')], text: '10 clean push-ups (~50% of adults)' },
-      { all: [feat('pullup1')], text: 'First strict pull-up (~25%)' },
-      { all: [feat('pullup10'), feat('dips15')], text: '10 strict pull-ups and 15 dips (~5–10%)' },
-      { all: [feat('muscleup1')], text: 'First clean muscle-up (~1–2%)' },
-      { any: [feat('hspu1'), feat('frontlever')], text: 'Strict handstand push-up or front lever (<0.5%)' },
-      { any: [feat('oneArmPullup'), feat('planche')], text: 'One-arm pull-up or full planche (<0.05%)' },
-    ],
-    mind: [
-      { all: [count(10)], text: '10 study or reading tasks done' },
-      {
-        all: [count(5, '\\b(licent|seminar|curs|examen|facultat|universit|filozof|filosof|drept|barou|lecture|exam|university)')],
-        text: 'Enrolled in higher education (evidence: 5+ university tasks)',
-      },
-      { all: [feat('licenta')], text: 'Bachelor’s degree (licență) obtained' },
-      { any: [feat('barou'), feat('languageC1')], text: 'Bar admission (Barou) or C1 language certificate' },
-      { any: [feat('masters'), feat('phd')], text: 'Master’s or PhD defended (~1–7%)' },
-      { all: [feat('published')], text: 'Published, recognised original work (~0.1%)' },
-    ],
-    upkeep: consistencyGates('Home chores'),
-    spirit: [
-      ...consistencyGates('Spirit practice').slice(0, 3),
-      { all: [streak(13, 2), feat('creativeWork')], text: 'Practice twice a week for 13 weeks + a finished creative work' },
-      ...consistencyGates('Spirit practice').slice(4),
-    ],
-    // Career = Duty. BOTH the wage and the position are required for each tier.
-    career: [
-      { all: [{ type: 'wage', minNetRon: 2699 }, { type: 'position', minRank: 1 }], text: 'Earn ≥ 2,699 RON net (minimum wage) AND have a first job' },
-      { all: [{ type: 'wage', minNetRon: 4300 }, { type: 'position', minRank: 2 }], text: 'Earn ≥ 4,300 RON net (~median) AND be a trainee lawyer' },
-      { all: [{ type: 'wage', minNetRon: 5717 }, { type: 'position', minRank: 3 }], text: 'Earn ≥ 5,717 RON net (national average) AND be a qualified lawyer' },
-      { all: [{ type: 'wage', minNetRon: 10000 }, { type: 'position', minRank: 4 }], text: 'Earn ≥ 10,000 RON net (top ~5%) AND own practice / senior associate' },
-      { all: [{ type: 'wage', minNetRon: 20000 }, { type: 'position', minRank: 5 }], text: 'Earn ≥ 20,000 RON net (top ~1%) AND partner' },
-      { all: [{ type: 'wage', minNetRon: 40000 }, { type: 'position', minRank: 6 }], text: 'Earn ≥ 40,000 RON net (top ~0.1%) AND managing partner / authority' },
-    ],
-  },
+  domains: DOMAINS,
+  // Tier T needs 3 of 5 domains at level T or above, and none below T-1.
+  needDomainShare: 0.6,
 
   feats: [
     // ---- Body (clean form required; assisted variants never count) ----
@@ -183,21 +130,11 @@ export const DEFAULT_CONFIG: EngineConfig = {
     },
   ],
 
-  difficultyXp: { easy: 10, medium: 25, hard: 50, 'boss-fight': 100 },
-  difficultyLevel: { easy: 2, medium: 4, hard: 5, 'boss-fight': 7 },
-  defaultXp: 10,
-  defaultLevel: 2,
-  neutralXp: 5,
-  challengeDecay: 0.6,
-  dailySoftCap: 4,
-  dailyOverCapFactor: 0.5,
-  durationClamp: [0.5, 2],
-  featBonusPerDecade: 50,
   imbalanceThreshold: 2,
 
   // First matching rule wins.
   mapping: [
-    // Spending XP / reference cards never earn XP.
+    // Rewards and reference cards are not progress.
     { bucket: 'ignored', label: 'Rewards' },
     { bucket: 'ignored', section: 'rewards vault' },
     { bucket: 'ignored', section: 'season board' },
@@ -253,9 +190,3 @@ export const DEFAULT_CONFIG: EngineConfig = {
     ],
   },
 };
-
-/** Tasks whose text matches this and that carry no difficulty label count as Easy (rest days, deloads). */
-export const REST_PATTERN = '\\b(rest|odihna|pauza|deload|walk|plimbare)\\b';
-
-/** Default difficulty for unlabelled tasks in these projects (session-based training plans). */
-export const PROJECT_DEFAULT_DIFFICULTY: Record<string, string> = { sport: 'medium' };
