@@ -24,7 +24,7 @@ export function Unlocks({ state }: { state: CharacterState }) {
           <ul className="plain">
             {recent.slice(0, 4).map(({ section, rung }) => (
               <li key={rung.id}>
-                <span>{section.def.emoji} <strong>{rung.text}</strong> <span className="muted">({fmtShare(rung.share)} of adults)</span></span>
+                <span>{section.def.emoji} <strong>{rung.text}</strong> <span className="muted">({fmtShare(rung.share)} of {state.group})</span></span>
                 <span className="muted small">{rung.confirmedAt}</span>
               </li>
             ))}
@@ -39,7 +39,7 @@ export function Unlocks({ state }: { state: CharacterState }) {
               <li key={rung.id}>
                 <span>{section.def.emoji} <strong>{rung.text}</strong></span>
                 <span className="muted small">
-                  {rung.share < section.share ? `Would put you in the ${fmtStanding(rung.share).toLowerCase()}` : `About ${fmtShare(rung.share)} of adults can do this`}
+                  {rung.share < section.share ? `Would put you in the ${fmtStanding(rung.share, state.group).toLowerCase()}` : `About ${fmtShare(rung.share)} of ${state.group} can do this`}
                 </span>
                 {rung.note && <span className="rung__note">{rung.note}</span>}
               </li>

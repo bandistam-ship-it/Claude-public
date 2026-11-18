@@ -187,3 +187,27 @@ details.domain[open] > summary::before { content: '▾'; }
 .rung label { grid-template-columns: auto minmax(0, 1fr) auto; }
 .rung__share { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .footnote { margin: 4px 2px 12px; }
+
+/* About you, Versus you */
+.about--prompt { border-color: var(--accent); }
+.about__fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+.about__fields label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.about__fields input, .about__fields select { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; width: 100%; }
+.versus h3 { margin: 14px 0 4px; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.versus__table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 8px 0; }
+.versus__table th, .versus__table td { text-align: left; padding: 5px 6px 5px 0; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.versus__table thead th { color: var(--muted); font-weight: 400; border-top: 0; font-size: 0.75rem; }
+.versus__table tbody th { font-weight: 400; color: var(--muted); }
+.versus__now th, .versus__now td { font-weight: 700; color: var(--accent); }
+.versus__chart { width: 100%; height: auto; margin-top: 8px; overflow: visible; }
+.versus__grid { stroke: var(--border); stroke-width: 1; }
+.versus__tick { fill: var(--muted); font-size: 9px; }
+.versus__line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.versus__line--cal { stroke: var(--accent-2); }
+.versus__line--end { stroke: var(--ok); }
+.versus__line--all { stroke: var(--accent); stroke-dasharray: 5 3; }
+.versus__legend { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin: 4px 0; }
+.versus__key { display: inline-block; width: 14px; height: 3px; margin-right: 4px; vertical-align: middle; border-radius: 2px; }
+.versus__key--cal { background: var(--accent-2); } .versus__key--end { background: var(--ok); } .versus__key--all { background: var(--accent); }
+.settings .check { flex-direction: row; align-items: flex-start; gap: 10px; }
+.settings .check input { width: auto; margin-top: 3px; }

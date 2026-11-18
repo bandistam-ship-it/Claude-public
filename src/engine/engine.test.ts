@@ -6,6 +6,7 @@ import { archetypeOf, computeState, rungId, tierFromShare } from './engine';
 import { matchFeat } from './feats';
 import { norm, parseReps } from './text';
 import { fmtPercentile, fmtShare, fmtStanding } from '../ui/format';
+import { adjustShare, bandOf, describeGroup, type Demographics } from './demographics';
 import type { CompletionEvent, TodoistMeta } from './types';
 
 // Fixtures modelled on a real account (task names are real).
@@ -112,11 +113,11 @@ describe('percentile standing', () => {
     expect(s.tier).toBe(1);
     expect(s.archetype.name).toBe('Basement Nerd');
     expect(cal(s).best).toBeNull();
-    expect(cal(s).next!.text).toBe('Crow or frog stand for 10 seconds'); // the most common skill is the next one within reach
+    expect(cal(s).next!.text).toBe('Tuck front lever for 10 seconds'); // the most common skill is the next one within reach
   });
 
   it('your standing is the share of your rarest achieved skill', () => {
-    const s = calc([], { [idOf('calisthenics', 'L-sit for 10 seconds')]: '2026-11-10', [idOf('calisthenics', 'First strict muscle-up')]: '2026-11-10' });
+    const s = calc([], { [idOf('calisthenics', 'Tuck front lever for 10 seconds')]: '2026-11-10', [idOf('calisthenics', 'First strict muscle-up')]: '2026-11-10' });
     expect(cal(s).best!.text).toBe('First strict muscle-up');
     expect(cal(s).share).toBe(0.005); // about 1 in 200 adults
   });
@@ -192,10 +193,85 @@ describe('formatting', () => {
   });
   it('writes a standing and a percentile', () => {
     expect(fmtStanding(1)).toBe('No feat yet');
-    expect(fmtStanding(0.015)).toBe('Top 1.5% of adults');
+    expect(fmtStanding(0.015)).toBe('Top 1.5% of all adults');
+    expect(fmtStanding(0.015, 'men aged 20–29')).toBe('Top 1.5% of men aged 20–29');
     expect(fmtStanding(0.0008)).toBe('About 1 in 1,250 adults');
     expect(fmtPercentile(0.015)).toBe('98.5th percentile');
     expect(fmtPercentile(0.12)).toBe('88th percentile');
     expect(fmtPercentile(0.0008)).toBe('99.92th percentile');
+    expect(fmtPercentile(0.08)).toBe('92nd percentile');
+    expect(fmtPercentile(0.2)).toBe('80th percentile');
+    expect(fmtPercentile(0.024)).toBe('97.6th percentile');
+    expect(fmtPercentile(0.08 / 1)).not.toMatch(/\.\d/);
+  });
+});
+
+describe('age and sex', () => {
+  const man22 = { age: 22, group: 'men' as const };
+  const calcFor = (claims: Record<string, string>, demo: Demographics = man22, now = NOW) => computeState([], META, C, claims, now, demo);
+
+  it('puts ages into bands', () => {
+    expect([19, 22, 29, 30, 45, 63].map(bandOf)).toEqual(['20-29', '20-29', '20-29', '30-39', '40-49', '50+']);
+  });
+  it('the same skill is rarer, and more impressive, in a group where it is more common', () => {
+    const claims = { 'calisthenics.muscle-up': '2026-11-10' };
+    const pooled = cal(calc([], claims));
+    const man = cal(calcFor(claims));
+    expect(pooled.share).toBe(0.005);
+    expect(man.share).toBeCloseTo(0.012, 6); // 2.4x as common among men aged 20-29
+    expect(man.poolShare).toBe(0.005); // still known for all adults
+  });
+  it('is harsher for a group where it is rarer', () => {
+    const claims = { 'calisthenics.muscle-up': '2026-11-10' };
+    expect(cal(calcFor(claims, { age: 55, group: 'women' })).share).toBeCloseTo(0.00075, 6);
+  });
+  it('never changes the VO2max rungs, which are percentiles within your own group', () => {
+    expect(adjustShare(0.05, 'exact', man22)).toBe(0.05);
+    expect(adjustShare(0.05, 'run', man22)).toBeCloseTo(0.09, 6);
+    expect(adjustShare(0.5, 'skill', man22)).toBe(0.95); // never above 95%
+  });
+  it('without an age or without a chosen group, you are compared with all adults', () => {
+    expect(adjustShare(0.01, 'skill', { age: null, group: 'men' })).toBe(0.01);
+    expect(adjustShare(0.01, 'skill', { age: 22, group: 'everyone' })).toBe(0.01);
+    expect(describeGroup({ age: null, group: 'everyone' })).toBe('all adults');
+    expect(describeGroup(man22)).toBe('men aged 20–29');
+    expect(describeGroup({ age: 52, group: 'women' })).toBe('women aged 50 and over');
+  });
+  it('keeps the ladder in order after adjusting skills', () => {
+    const adj = SECTIONS[0].rungs.map((r) => adjustShare(r.share, r.kind, man22));
+    for (let i = 1; i < adj.length; i++) expect(adj[i]).toBeLessThanOrEqual(adj[i - 1]);
+  });
+});
+
+describe('versus you', () => {
+  it('has no history until you unlock something', () => {
+    const s = calc([]);
+    expect(s.trackingSince).toBeNull();
+    expect(s.timeline).toEqual([]);
+    expect(s.versus.every((v) => v.then === null)).toBe(true);
+  });
+
+  it('replays your standing from the date of each unlock', () => {
+    const s = calc([], {
+      'calisthenics.tuck-front-lever': '2026-05-01', // top 1%
+      'calisthenics.muscle-up': '2026-10-01', // top 0.5%
+      'endurance.run-5k': '2026-08-01', // top 15%
+    });
+    expect(s.trackingSince).toBe('2026-05-01');
+    expect(s.timeline.map((p) => p.date)).toEqual(['2026-05-01', '2026-08-01', '2026-10-01', '2026-11-18']);
+    expect(s.timeline[0].calisthenics).toBe(0.01);
+    expect(s.timeline[0].endurance).toBe(1);
+    expect(s.timeline[2].calisthenics).toBe(0.005);
+    expect(s.timeline[3].endurance).toBe(0.15);
+    expect(s.now.calisthenics).toBe(0.005);
+  });
+
+  it('compares with 1, 3, 6 and 12 months ago, but only after tracking began', () => {
+    const s = calc([], { 'calisthenics.tuck-front-lever': '2026-05-01', 'calisthenics.muscle-up': '2026-10-01' });
+    const byLabel = Object.fromEntries(s.versus.map((v) => [v.label, v.then]));
+    expect(byLabel['1 month ago']!.calisthenics).toBe(0.005); // 2026-10-19: the muscle-up (1 Oct) already counted
+    expect(byLabel['3 months ago']!.calisthenics).toBe(0.01); // 2026-08-20: only the tuck front lever
+    expect(byLabel['6 months ago']!.calisthenics).toBe(0.01); // 2026-05-22: tracking began on 1 May
+    expect(byLabel['1 year ago']).toBeNull(); // before you started tracking
   });
 });

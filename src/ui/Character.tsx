@@ -14,7 +14,7 @@ export function Character({ state }: { state: CharacterState }) {
         <div className="level">
           <strong>{state.tierTitle}</strong>
           {overall && (
-            <span className="muted"> · overall {fmtStanding(state.combinedShare).toLowerCase()} ({fmtPercentile(state.combinedShare)})</span>
+            <span className="muted"> · overall {fmtStanding(state.combinedShare, state.group).toLowerCase()} ({fmtPercentile(state.combinedShare)})</span>
           )}
           <p className="muted small">{state.rungsDone} of {state.rungsTotal} feats</p>
         </div>

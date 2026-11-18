@@ -16,15 +16,29 @@ and the archetype (one section 5× rarer than the other makes you lopsided).
 ## Be careful with the numbers
 
 **These shares are estimates, not measurements.** Almost no population survey measures these feats.
-They are pooled across all adults, all ages and both sexes, so they flatter a young man and are
-harsh on an older woman. Treat the percentiles as rough orders of magnitude.
+The catalog stores each as a share of ALL adults (pooled across ages and sexes). Treat the
+percentiles as rough orders of magnitude.
+
+### Age and sex
+Tell the app your age and who to compare you with (men, women, or everyone) and every share is
+multiplied by a rough factor for your group, so "top 2.4% of men aged 20–29" replaces "top 1% of
+all adults". The factors are estimates of how many times more (or less) common a feat is in your
+group than in all adults, for 20–29 / 30–39 / 40–49 / 50+:
+
+| Group | Bar skills | Running (participation and times) |
+|---|---|---|
+| Men | ×2.4 / 2.0 / 1.2 / 0.5 | ×1.8 / 1.5 / 1.1 / 0.6 |
+| Women | ×0.6 / 0.5 / 0.35 / 0.15 | ×0.9 / 0.8 / 0.7 / 0.4 |
+
+The VO₂max rungs are never adjusted: they are percentiles within your own age and sex by definition.
+A share is capped at 95%. With no age or no chosen group, you are compared with all adults.
 
 How each group was estimated:
 
 | Feats | Basis | Confidence |
 |---|---|---|
-| Crow, L-sit, wall handstand, pistol squat | Informed estimates of how many adults can hold or do them. No survey exists | Low |
-| Tuck levers and planche, dragon flag, freestanding handstand | Extrapolated from how rare these are in training communities, about 1 in 100 to 1 in 500 | Very low |
+| Tuck levers and tuck planche, straddle press | Informed estimates, about 1 in 100 to 1 in 200 adults | Very low |
+| Dragon flag, handstand walk, freestanding handstand, V-sit, one-arm push-up | Extrapolated from how rare these are in training communities, about 1 in 250 to 1 in 500 | Very low |
 | Muscle-up, HSPU, full levers, human flag, planche, one-arm pull-up | Guesses. No population data exists; these are "1 in 200" to "1 in 5,000" orders of magnitude | Very low |
 | 5 km / 10 km non-stop | About 15% of adults run regularly (surveys say 5–16%), fewer can run 10 km | Medium-low |
 | Race times (5 km, 10 km, half, marathon) | Share of adults who run × how runners' times are distributed (RunRepeat) | Low |
@@ -51,8 +65,24 @@ achieved** forever, and counts as **currently valid** only while you did it or c
 the window. The app shows both: "Top 1.5% of adults" and, if it lapsed, "Right now: top 12%".
 Your best never drops. Tap "I can still do this" to renew a ticked feat.
 
+## Versus you
+Every unlocked skill has the day you first did it (the day you ticked it, or the first matching
+task). The app replays your standing from those dates: standing 1, 3, 6 and 12 months ago against
+now, a chart over time, and a log of unlocks. History starts on your first dated unlock; earlier
+months read "Before you started tracking".
+
+## Backup and sync
+Your ticks, your age and your notes live only on your device. Two ways to keep them safe:
+- **Backup text:** copy it from Settings and paste it into another device to restore. It never
+  contains your Todoist token. Restoring merges, so newer changes on a device are kept.
+- **Sync through Todoist (opt-in):** keeps the same data in ONE comment on your Inbox project, marked
+  "⚙️ realm-companion-state". Each device reads it, merges (the later change to each tick wins, so
+  an un-tick on one device is not undone by another) and writes back only if something changed.
+  It works in the claude.ai page and in the Android app, so they stay in step. Nothing else is
+  written to Todoist.
+
 ## What is not scored
-Only calisthenics and running tasks count. Everything else (study, home, work, relationships) is
+Skills you obviously already have (crow stand, L-sit, wall handstand, pistol squat) are left off the list. Only calisthenics and running tasks count. Everything else (study, home, work, relationships) is
 "not scored".
 
 ## Sources

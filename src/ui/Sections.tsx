@@ -51,24 +51,27 @@ function Rung({ r, onToggle, onConfirm }: { r: RungState; onToggle: (id: string)
   );
 }
 
-function Section({ s, onToggle, onConfirm }: { s: SectionState; onToggle: (id: string) => void; onConfirm: (id: string) => void }) {
+function Section({ s, group, onToggle, onConfirm }: { s: SectionState; group: string; onToggle: (id: string) => void; onConfirm: (id: string) => void }) {
   const done = s.rungs.filter((r) => r.achieved).length;
   const lapsed = s.currentShare > s.share;
   return (
     <section className="panel section">
       <h2>{s.def.emoji} {s.def.name}</h2>
       <p className="standing">
-        <strong>{fmtStanding(s.share)}</strong>
+        <strong>{fmtStanding(s.share, group)}</strong>
         {s.share < 1 && <span className="muted"> · {fmtPercentile(s.share)}</span>}
       </p>
+      {s.share < 1 && group !== 'all adults' && (
+        <p className="muted small">Among all adults: {s.poolShare >= 0.01 ? `top ${fmtShare(s.poolShare)}` : `about ${fmtShare(s.poolShare)}`}.</p>
+      )}
       {s.best ? (
         <p className="muted small">Your rarest: {s.best.text}{s.best.confirmedAt ? ` (${s.best.confirmedAt})` : ''}.</p>
       ) : (
-        <p className="muted small">Nothing ticked yet. {s.next ? `The easiest feat: ${s.next.text}, which about ${fmtShare(s.next.share)} of adults can do.` : ''}</p>
+        <p className="muted small">Nothing ticked yet. {s.next ? `The easiest feat: ${s.next.text}, which about ${fmtShare(s.next.share)} of ${group} can do.` : ''}</p>
       )}
       {lapsed && (
         <p className="lapsed small">
-          Right now: {fmtStanding(s.currentShare)}. Your rarest feat has not been confirmed in {s.def.decayDays} days. Your best never drops.
+          Right now: {fmtStanding(s.currentShare, group)}. Your rarest feat has not been confirmed in {s.def.decayDays} days. Your best never drops.
         </p>
       )}
       {s.def.id === 'calisthenics' && (
@@ -80,7 +83,7 @@ function Section({ s, onToggle, onConfirm }: { s: SectionState; onToggle: (id: s
           <span>Feats</span>
           <span className="domain__level">{done} of {s.rungs.length}</span>
         </summary>
-        <p className="muted small">From the most common to the rarest. The figure is the estimated share of all adults who can do it.</p>
+        <p className="muted small">From the most common to the rarest. The figure is the estimated share of {group} who can do it.</p>
         <ul className="ladder">
           {s.rungs.map((r) => <Rung key={r.id} r={r} onToggle={onToggle} onConfirm={onConfirm} />)}
         </ul>
@@ -92,9 +95,9 @@ function Section({ s, onToggle, onConfirm }: { s: SectionState; onToggle: (id: s
 export function Sections({ state, onToggle, onConfirm }: Props) {
   return (
     <>
-      {state.sections.map((s) => <Section key={s.def.id} s={s} onToggle={onToggle} onConfirm={onConfirm} />)}
+      {state.sections.map((s) => <Section key={s.def.id} s={s} group={state.group} onToggle={onToggle} onConfirm={onConfirm} />)}
       <p className="muted small footnote">
-        Shares are rough estimates for all adults, pooled across ages and sexes. See the criteria for how each was estimated.
+        Shares are rough estimates, adjusted for your age and sex with rough multipliers. VO₂max rungs are exact percentiles. See the criteria for how each was estimated.
       </p>
     </>
   );

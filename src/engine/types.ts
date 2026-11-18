@@ -30,7 +30,9 @@ export interface TodoistMeta {
   sections: Record<string, { name: string; projectId: string }>;
 }
 
-/** Feats you ticked by hand: id -> ISO date. */
+import type { Kind } from './demographics';
+
+/** Feats you ticked by hand: id -> date (YYYY-MM-DD). */
 export type Claims = Record<string, string>;
 
 // ---------- Config ----------
@@ -48,6 +50,8 @@ export interface RungDef {
    * VO₂max rungs, which are percentiles by definition.
    */
   share: number;
+  /** How the share changes with age and sex. 'exact' = already a percentile within your group. */
+  kind: Kind;
   auto?: Auto;
 }
 
@@ -111,7 +115,12 @@ export interface HistoryEntry {
 export interface RungState {
   id: string;
   text: string;
+  /** Share of people in your age and sex group who can do this (the adjusted share). */
   share: number;
+  /** Share of all adults (pooled), before adjusting for age and sex. */
+  poolShare: number;
+  /** The day you first did it: the date you ticked it, or the first matching task. */
+  achievedAt?: string;
   /** Ever achieved. */
   achieved: boolean;
   /** Achieved and, if the section fades, confirmed recently enough to count as currently valid. */
@@ -126,9 +135,11 @@ export interface RungState {
 export interface SectionState {
   def: SectionDef;
   rungs: RungState[];
-  /** Share of adults who can do your rarest achieved feat. 1 = nothing achieved yet. */
+  /** Share of your group who can do your rarest achieved feat. 1 = nothing achieved yet. */
   share: number;
-  /** The same, counting only feats that are currently valid. */
+  /** The same for all adults, pooled. */
+  poolShare: number;
+  /** The same as `share`, counting only feats that are currently valid. */
   currentShare: number;
   best: RungState | null;
   current: RungState | null;
@@ -145,8 +156,42 @@ export interface DetectedFeat {
   lastAt?: string;
 }
 
+export interface TimelinePoint {
+  date: string;
+  calisthenics: number;
+  endurance: number;
+  combined: number;
+}
+
+export interface UnlockEntry {
+  sectionId: SectionId;
+  sectionName: string;
+  emoji: string;
+  rungId: string;
+  text: string;
+  share: number;
+  date: string;
+}
+
+/** Standing some days ago against now. `then` is null before you started tracking. */
+export interface Versus {
+  days: number;
+  label: string;
+  then: { calisthenics: number; endurance: number; combined: number } | null;
+}
+
 export interface CharacterState {
+  /** Who you are compared with: "men aged 20–29" or "all adults". */
+  group: string;
+  /** The day this was calculated for (YYYY-MM-DD). */
+  today: string;
   sections: SectionState[];
+  timeline: TimelinePoint[];
+  unlocks: UnlockEntry[];
+  versus: Versus[];
+  /** The earliest dated unlock, or null. Your "versus you" history starts here. */
+  trackingSince: string | null;
+  now: { calisthenics: number; endurance: number; combined: number };
   /** Combined standing: the geometric mean of the two sections' shares. */
   combinedShare: number;
   /** 1..7, drives the character's build and training space. */

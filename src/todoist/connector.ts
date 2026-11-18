@@ -8,12 +8,12 @@ import { normalizeActivity } from './normalize';
  */
 
 export const TODOIST_SERVER = 'Todoist';
-export const CONNECTOR_TOOLS = ['user-info', 'find-projects', 'find-sections', 'find-activity'];
+export const CONNECTOR_TOOLS = ['user-info', 'find-projects', 'find-sections', 'find-activity', 'find-comments', 'add-comments', 'update-comments'];
 
 type Raw = Record<string, unknown>;
 
 interface McpError { code: string; message: string; retryable?: boolean; retryAfterMs?: number }
-interface Mcp {
+export interface Mcp {
   callTool(server: string, tool: string, input?: unknown, opts?: { cache?: false }): Promise<{ payload?: unknown }>;
 }
 interface ClaudeRuntime { use(name: string): Promise<unknown> }
@@ -54,7 +54,7 @@ export function connectorErrorMessage(e: unknown): string {
   }
 }
 
-async function call(mcp: Mcp, tool: string, input: Raw): Promise<Raw> {
+export async function call(mcp: Mcp, tool: string, input: Raw): Promise<Raw> {
   try {
     const r = await mcp.callTool(TODOIST_SERVER, tool, input, { cache: false });
     return (r.payload ?? {}) as Raw;

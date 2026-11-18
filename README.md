@@ -5,10 +5,12 @@ body shows what you can do, compared with everyone else.
 
 - **Two sections: Calisthenics and Endurance.** Each is a list of exact feats (a muscle-up,
   a front lever, a sub-30 5 km, a marathon), and each feat carries the estimated share of all adults
-  who can do it. Calisthenics is judged on skills, not volume. Your standing is a percentile of the population: "top 1.5% of adults". The figures
+  who can do it. Calisthenics is judged on skills, not volume. Your standing is a percentile for your age and sex: "top 2.4% of men aged 20–29". The figures
   are rough estimates, clearly labelled. See [docs/CRITERIA.md](docs/CRITERIA.md).
 - **Your whole history.** The first sync reads Todoist's full activity log, recurring
   occurrences included, across all projects (The Realm, The Town, Sport, Barou, Inbox).
+- **Versus you, backup and sync.** A timeline of your own progress, a copy-paste backup, and optional
+  sync between the claude.ai page and the Android app through one Todoist comment.
 - **Private.** No server. The API token and history stay in your browser (localStorage +
   IndexedDB). The app only reads from Todoist; it never changes anything.
 

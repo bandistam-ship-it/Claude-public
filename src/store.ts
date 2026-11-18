@@ -1,38 +1,40 @@
 import { get, set, del } from 'idb-keyval';
-import type { Claims, CompletionEvent, TodoistMeta } from './engine/types';
+import type { CompletionEvent, TodoistMeta } from './engine/types';
+import { EMPTY_PROFILE, EMPTY_SITUATION, type ClaimLog, type Profile, type Situation } from './state/blob';
 
 /*
  * Everything stays in this browser. Small settings → localStorage; the completion history
  * (thousands of events) → IndexedDB. All access is wrapped: storage can be blocked.
  */
 
-/** Free-text "where I am now". Typed in the app, stays in this browser, never part of the code. */
-export interface Situation {
-  focus: string;
-  goals: string;
-  notes: string;
-  updatedAt: string | null;
-}
+export type { Situation } from './state/blob';
 
 export interface Settings {
   token: string;
   apiBase: string;
+  profile: Profile;
   situation: Situation;
-  /** Milestones you ticked by hand: id -> ISO date. */
-  claims: Claims;
-  /** Settings schema version. Older versions used different milestone ids, so their ticks are dropped. */
-  version: number;
+  /** Ticks, with un-ticks and timestamps so two devices can be merged. */
+  claimLog: ClaimLog;
+  /** Opt in: keep ticks, profile and notes in sync through one Todoist comment. */
+  syncEnabled: boolean;
+  lastSyncedAt: string | null;
   /** Advanced: JSON merged over the default engine config. */
   configOverride: string;
+  /** Settings schema version. */
+  version: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   token: '',
   apiBase: '',
-  situation: { focus: '', goals: '', notes: '', updatedAt: null },
-  claims: {},
-  version: 4,
+  profile: EMPTY_PROFILE,
+  situation: EMPTY_SITUATION,
+  claimLog: {},
+  syncEnabled: false,
+  lastSyncedAt: null,
   configOverride: '',
+  version: 5,
 };
 
 const SETTINGS_KEY = 'realm-companion:settings';
@@ -41,12 +43,18 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const s = JSON.parse(raw) as Partial<Settings>;
+    const s = JSON.parse(raw) as Partial<Settings> & { claims?: Record<string, string> };
+    // Version 4 stored plain ticks (id -> date). They keep their permanent ids, so carry them over.
+    let claimLog: ClaimLog = s.version === 5 && s.claimLog ? s.claimLog : {};
+    if (s.version === 4 && s.claims) {
+      claimLog = Object.fromEntries(Object.entries(s.claims).map(([id, date]) => [id, { date, at: `${date}T00:00:00.000Z` }]));
+    }
     return {
       ...DEFAULT_SETTINGS, ...s,
-      situation: { ...DEFAULT_SETTINGS.situation, ...s.situation },
-      claims: s.version === 4 && s.claims ? s.claims : DEFAULT_SETTINGS.claims,
-      version: 4,
+      profile: { ...EMPTY_PROFILE, ...s.profile },
+      situation: { ...EMPTY_SITUATION, ...s.situation },
+      claimLog,
+      version: 5,
     };
   } catch {
     return DEFAULT_SETTINGS;

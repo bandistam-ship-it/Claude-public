@@ -39,6 +39,29 @@ export class TodoistClient {
     return (await res.json()) as Raw;
   }
 
+  /** A write (or any call with a body). Same error handling as reads. */
+  async send(method: 'POST' | 'DELETE', path: string, body?: unknown): Promise<Raw> {
+    let res: Response;
+    try {
+      res = await fetch(this.base + path, {
+        method,
+        headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      throw new TodoistError('Could not reach Todoist (network or CORS).');
+    }
+    if (res.status === 401 || res.status === 403) throw new TodoistError('Todoist rejected the API token.', res.status);
+    if (!res.ok) throw new TodoistError(`Todoist API error ${res.status} on ${path}`, res.status);
+    const text = await res.text();
+    return text ? (JSON.parse(text) as Raw) : {};
+  }
+
+  /** All items of a list endpoint. */
+  async list(path: string, params: Record<string, string | number | undefined> = {}): Promise<Raw[]> {
+    return this.all(path, params);
+  }
+
   /** Follow next_cursor until exhausted (the caller may stop early). */
   private async *paged(path: string, params: Record<string, string | number | undefined> = {}) {
     let cursor: string | undefined;
