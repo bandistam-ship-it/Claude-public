@@ -8,15 +8,15 @@ export type { Tiers };
 /** The character in his room, drawn as pixel art. Each stat's tier changes one layer. */
 export function PixelScene({ tiers, label }: { tiers: Tiers; label: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const { body, mind, upkeep, spirit, career } = tiers;
+  const { body, mind, upkeep } = tiers;
 
   useEffect(() => {
     const ctx = ref.current?.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
     drawRoom(ctx, upkeep);
-    drawCharacter(ctx, { body, mind, upkeep, spirit, career });
-  }, [body, mind, upkeep, spirit, career]);
+    drawCharacter(ctx, { body, mind, upkeep });
+  }, [body, mind, upkeep]);
 
   return <canvas ref={ref} className="pixel-scene" width={W} height={H} role="img" aria-label={label} />;
 }

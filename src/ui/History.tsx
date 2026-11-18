@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Bucket, CharacterState } from '../engine/types';
 
 const BUCKET_EMOJI: Record<Bucket, string> = {
-  body: '💪', mind: '🧠', upkeep: '🏰', spirit: '🔥', career: '📜', neutral: '▫️', ignored: '🚫',
+  body: '💪', mind: '🧠', upkeep: '🏰', neutral: '▫️', ignored: '🚫',
 };
 
 export function History({ state }: { state: CharacterState }) {
@@ -18,7 +18,7 @@ export function History({ state }: { state: CharacterState }) {
       <h2>History</h2>
       <p className="muted small">Completed tasks and where each one counts. Streak and count milestones are read from here.</p>
       <div className="chips">
-        {(['all', 'body', 'mind', 'upkeep', 'spirit', 'career', 'neutral', 'ignored'] as const).map((b) => (
+        {(['all', 'body', 'mind', 'upkeep', 'neutral', 'ignored'] as const).map((b) => (
           <button key={b} className={filter === b ? 'chip chip--on' : 'chip'} onClick={() => setFilter(b)}>
             {b === 'all' ? 'All' : `${BUCKET_EMOJI[b]} ${b === 'ignored' ? 'not scored' : b}`}
           </button>

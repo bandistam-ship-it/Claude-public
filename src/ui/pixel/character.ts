@@ -1,6 +1,6 @@
-import { ellipse, rect, rng, shaded, withAlpha, type Ctx } from './draw';
+import { ellipse, rect, shaded, withAlpha, type Ctx } from './draw';
 
-export interface Tiers { body: number; mind: number; upkeep: number; spirit: number; career: number }
+export interface Tiers { body: number; mind: number; upkeep: number }
 
 const SKIN = { base: '#d9a47f', light: '#ecc09c', dark: '#b27c5a', deep: '#8e5f45' };
 const CX = 80;
@@ -18,24 +18,8 @@ const TOPS = ['', '#8c8c92', '#3d6b8a', '#e8e8ea', '#e8e8ea', '#1f2a44', '#16161
 
 function lerp(a: number, b: number, t: number): number { return a + (b - a) * t; }
 
-function aura(c: Ctx, spirit: number): void {
-  if (spirit < 2) return;
-  const palette = ['', '#c8b36a', '#e3c46e', '#f4d98a', '#ffe9a8', '#e8f0ff', '#ffffff'];
-  const col = palette[spirit - 1];
-  for (let i = 0; i < 4; i++) {
-    withAlpha(c, 0.07 + i * 0.015, () => ellipse(c, CX, 70, 12 + spirit * 3 - i * 3, 26 + spirit * 3 - i * 3, col));
-  }
-  if (spirit >= 4) {
-    const r = rng(spirit * 13);
-    for (let i = 0; i < spirit * 2; i++) {
-      const a = r() * Math.PI * 2, d = 18 + r() * (6 + spirit * 3);
-      rect(c, CX + Math.cos(a) * d, 70 + Math.sin(a) * d * 1.4, 1, 1, '#fff6c8');
-    }
-  }
-}
-
 function cape(c: Ctx, tiers: Tiers): void {
-  if (tiers.career < 7) return;
+  if (tiers.mind < 7) return;
   const sh = SHOULDER[tiers.body - 1];
   rect(c, CX - sh - 3, SHIRT_TOP, sh * 2 + 7, 42, '#7a1f2b');
   rect(c, CX - sh - 3, SHIRT_TOP, 2, 42, '#a02f3d');
@@ -44,16 +28,16 @@ function cape(c: Ctx, tiers: Tiers): void {
 
 function legs(c: Ctx, tiers: Tiers): void {
   const lw = LEG[tiers.body - 1];
-  const career = tiers.career;
+  const outfit = tiers.mind; // the outfit follows Mind
   for (const side of [-1, 1]) {
     const x = side < 0 ? CX - 1 - lw : CX + 1;
     // skin first (visible below boxers)
     shaded(c, x, 82, lw, 18, SKIN.base, SKIN.light, SKIN.dark);
-    if (career >= 2) shaded(c, x, 82, lw, 18, PANTS[career - 1], 'rgba(255,255,255,0.14)', 'rgba(0,0,0,0.3)');
+    if (outfit >= 2) shaded(c, x, 82, lw, 18, PANTS[outfit - 1], 'rgba(255,255,255,0.14)', 'rgba(0,0,0,0.3)');
     else shaded(c, x - 1, 80, lw + 2, 9, PANTS[0], '#a05050', '#5a2828');
-    if (career >= 5) rect(c, x + Math.floor(lw / 2), 84, 1, 15, 'rgba(255,255,255,0.1)'); // crease
+    if (outfit >= 5) rect(c, x + Math.floor(lw / 2), 84, 1, 15, 'rgba(255,255,255,0.1)'); // crease
     // shoes / slippers
-    if (career <= 1) {
+    if (outfit <= 1) {
       shaded(c, x - 1, 100, lw + 3, 3, '#6b5b95', '#8a7ab8', '#463a68');
     } else {
       shaded(c, x - 1, 100, lw + 3, 3, '#221b16', '#3a2f27', '#0e0a08');
@@ -104,7 +88,7 @@ function body(c: Ctx, tiers: Tiers, slouch: number): void {
 }
 
 function clothing(c: Ctx, tiers: Tiers, slouch: number): void {
-  const car = tiers.career;
+  const car = tiers.mind;
   if (car <= 1) return;
   const b = tiers.body;
   const sh = SHOULDER[b - 1], wa = WAIST[b - 1], at = ARM[b - 1];
@@ -242,7 +226,6 @@ export function drawCharacter(c: Ctx, tiers: Tiers): void {
   const slouch = tiers.body <= 1 ? 2 : 0;
   // ground shadow
   withAlpha(c, 0.3, () => ellipse(c, CX, 103, 16 + tiers.body * 1.2, 3, '#000000'));
-  aura(c, tiers.spirit);
   cape(c, tiers);
   legs(c, tiers);
   body(c, tiers, slouch);

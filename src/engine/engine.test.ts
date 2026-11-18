@@ -5,7 +5,7 @@ import { bestStreak, computeState, tierFromLevels } from './engine';
 import { matchFeat } from './feats';
 import { DOMAINS } from './catalog';
 import { norm, parseReps } from './text';
-import type { CompletionEvent, Profile, TodoistMeta } from './types';
+import type { CompletionEvent, TodoistMeta } from './types';
 
 // Fixtures modelled on the real Todoist account (task names are real).
 const META: TodoistMeta = {
@@ -24,7 +24,6 @@ const META: TodoistMeta = {
     war: { name: 'War', projectId: 'town' },
   },
 };
-const STUDENT: Profile = { netWageRon: 0, positionRank: 0 };
 
 let seq = 0;
 function ev(p: Partial<CompletionEvent> & { content: string }): CompletionEvent {
@@ -55,8 +54,8 @@ describe('classify', () => {
   const b = (e: CompletionEvent) => classify(e, META, C).bucket;
   it('uses Realm stat labels first', () => {
     expect(b(ev({ content: 'Licență la bibliotecă', projectId: 'realm', sectionId: 'library', labels: ['Hard', 'Licenta', 'Mind'] }))).toBe('mind');
-    expect(b(ev({ content: 'Închide un abonament', projectId: 'realm', sectionId: 'chancery', labels: ['Duty', 'Easy'] }))).toBe('career');
-    expect(b(ev({ content: 'Răspunde colegului', labels: ['Duty', 'Easy', 'Profesie'] }))).toBe('career');
+    expect(b(ev({ content: 'Închide un abonament', projectId: 'realm', sectionId: 'chancery', labels: ['Duty', 'Easy'] }))).toBe('ignored');
+    expect(b(ev({ content: 'Răspunde colegului', labels: ['Duty', 'Easy', 'Profesie'] }))).toBe('ignored');
   });
   it('maps The Town by section and Sport/Barou by project', () => {
     expect(b(ev({ content: 'Schimbă apa la țestoase', projectId: 'town', sectionId: 'castle' }))).toBe('upkeep');
@@ -105,44 +104,65 @@ describe('feats: hard gates, clean form only', () => {
   it('detects academic milestones only when the result is stated', () => {
     expect(matchFeat(ev({ content: 'Licență la bibliotecă', labels: ['Hard'] }), 'mind', f('licenta'))).toBeNull();
     expect(matchFeat(ev({ content: 'Licență susținută!', labels: ['Achievement'] }), 'mind', f('licenta'))).toBe('counted');
-    expect(matchFeat(ev({ content: 'Admis la Barou', labels: ['Boss-fight'] }), 'career', f('barou'))).toBe('counted');
+    expect(matchFeat(ev({ content: 'Admis la Barou', labels: ['Boss-fight'] }), 'mind', f('barou'))).toBe('counted');
+  });
+});
+
+const NOW = Date.parse('2026-11-18T12:00:00Z');
+const calc = (events: CompletionEvent[], claims: Record<string, string> = {}, now = NOW) =>
+  computeState(events, META, C, claims, now);
+const stat = (s: ReturnType<typeof calc>, id: string) => s.stats.find((x) => x.def.id === id)!;
+const domain = (s: ReturnType<typeof calc>, id: string, d: string) => stat(s, id).domains.find((x) => x.def.id === d)!;
+const claimAll = (statId: 'body' | 'mind' | 'upkeep', levels: number[], date = '2026-11-01', skip: string[] = []) => {
+  const claims: Record<string, string> = {};
+  for (const d of DOMAINS[statId]) if (!skip.includes(d.id)) for (const l of levels) claims[`${statId}.${d.id}.${l}`] = date;
+  return claims;
+};
+
+describe('structure', () => {
+  it('has Body (6 domains), Mind (5) and a light Upkeep (3), six milestones each', () => {
+    expect(DOMAINS.body).toHaveLength(6);
+    expect(DOMAINS.mind).toHaveLength(5);
+    expect(DOMAINS.upkeep).toHaveLength(3);
+    for (const stat of Object.keys(DOMAINS) as (keyof typeof DOMAINS)[]) for (const d of DOMAINS[stat]) expect(d.ladder).toHaveLength(6);
+  });
+  it('has no career or spirit sections and shows no population percentages', () => {
+    expect(Object.keys(DOMAINS).sort()).toEqual(['body', 'mind', 'upkeep']);
+    const text = JSON.stringify(DOMAINS);
+    expect(text).not.toMatch(/\b1 in [\d,]+/);
+    expect(text).not.toMatch(/about half of adults|%\s+of (adults|Romanian)/i);
+  });
+  it('Body and Mind count double toward level', () => {
+    expect(C.stats.map((x) => x.weight)).toEqual([2, 2, 1]);
   });
 });
 
 describe('rounded tiers', () => {
-  it('a tier needs 3 of 5 domains at that level and none more than one behind', () => {
+  it('a tier needs 60% of domains at that level and none more than one behind', () => {
     expect(tierFromLevels([1, 1, 1, 1, 1], 0.6)).toBe(1);
-    expect(tierFromLevels([4, 4, 4, 1, 1], 0.6)).toBe(2); // two neglected domains cap it at 2
+    expect(tierFromLevels([4, 4, 4, 1, 1], 0.6)).toBe(2);
     expect(tierFromLevels([4, 4, 4, 3, 3], 0.6)).toBe(4);
-    expect(tierFromLevels([7, 7, 7, 1, 1], 0.6)).toBe(2); // brilliant in 3, ignoring 2: only tier 2
+    expect(tierFromLevels([7, 7, 7, 1, 1], 0.6)).toBe(2);
     expect(tierFromLevels([6, 6, 6, 6, 6], 0.6)).toBe(6);
   });
-  it('Legendary needs every domain at 6+ and three at 7', () => {
+  it('Legendary needs every domain at 6+ and 60% at 7', () => {
     expect(tierFromLevels([7, 7, 6, 6, 6], 0.6)).toBe(6);
     expect(tierFromLevels([7, 7, 7, 6, 6], 0.6)).toBe(7);
     expect(tierFromLevels([7, 7, 7, 7, 5], 0.6)).toBe(6);
   });
-  it('every stat has five domains with six milestones each', () => {
-    for (const stat of Object.keys(DOMAINS) as (keyof typeof DOMAINS)[]) {
-      expect(DOMAINS[stat]).toHaveLength(5);
-      for (const d of DOMAINS[stat]) expect(d.ladder).toHaveLength(6);
-    }
-  });
 });
 
 describe('milestones', () => {
-  const stat = (s: ReturnType<typeof computeState>, id: string) => s.stats.find((x) => x.def.id === id)!;
-  const domain = (s: ReturnType<typeof computeState>, id: string, d: string) => stat(s, id).domains.find((x) => x.def.id === d)!;
-
   it('starts as a level 1 Basement Nerd with nothing achieved', () => {
-    const s = computeState([], META, STUDENT, C);
+    const s = calc([]);
     expect(s.level).toBe(1);
     expect(s.milestonesDone).toBe(0);
     expect(s.archetype.name).toBe('Basement Nerd');
+    expect(s.stats.every((x) => x.progress === 0)).toBe(true);
   });
 
   it('a ticked milestone counts and implies the rungs below it', () => {
-    const s = computeState([], META, STUDENT, C, { 'body.strength.4': '2026-11-18' });
+    const s = calc([], { 'body.strength.4': '2026-11-18' });
     const strength = domain(s, 'body', 'strength');
     expect(strength.level).toBe(4); // 10 strict pull-ups and 15 strict dips
     expect(strength.milestones.find((m) => m.level === 4)!.source).toBe('claimed');
@@ -151,66 +171,95 @@ describe('milestones', () => {
     expect(stat(s, 'body').tier).toBe(1); // one strong domain does not make a well-rounded body
   });
 
-  it('is rounded: being elite at one thing barely moves the stat', () => {
-    const claims = Object.fromEntries([2, 3, 4, 5, 6, 7].map((l) => [`body.strength.${l}`, '2026-01-01']));
-    const s = computeState([], META, STUDENT, C, claims);
+  it('is rounded: elite at one thing barely moves the stat', () => {
+    const claims = Object.fromEntries([2, 3, 4, 5, 6, 7].map((l) => [`body.strength.${l}`, '2026-11-01']));
+    const s = calc([], claims);
     expect(domain(s, 'body', 'strength').level).toBe(7);
     expect(stat(s, 'body').tier).toBe(1);
   });
 
   it('a well-rounded body reaches higher tiers', () => {
-    const claims: Record<string, string> = {};
-    for (const d of DOMAINS.body) for (const l of [2, 3, 4]) claims[`body.${d.id}.${l}`] = '2026-01-01';
-    const s = computeState([], META, STUDENT, C, claims);
+    const s = calc([], claimAll('body', [2, 3, 4]));
     expect(stat(s, 'body').tier).toBe(4);
     expect(stat(s, 'body').title).toBe('Fit');
   });
 
-  it('detects pull-up milestones from task text, and only with clean form', () => {
-    const strict = ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport' });
-    const dips = ev({ content: 'Strict dips – 3x15', projectId: 'sport' });
-    const s = computeState([strict, dips], META, STUDENT, C);
-    expect(domain(s, 'body', 'strength').level).toBe(4);
-    const sloppy = computeState([ev({ content: 'Straight bar dips – 3x15', projectId: 'sport' })], META, STUDENT, C);
-    const note = domain(sloppy, 'body', 'strength').milestones.find((m) => m.level === 4)!.note;
-    expect(domain(sloppy, 'body', 'strength').level).toBe(1);
-    expect(note).toContain('no proof of clean form');
+  it('the next tier shows an exact requirement count, not a vague percentage', () => {
+    const s = calc([], claimAll('body', [2, 3, 4], '2026-11-01', ['skills', 'physique']));
+    const body = stat(s, 'body');
+    expect(body.tier).toBe(2); // two domains still at level 1 cap it
+    expect(body.nextReq).toEqual({ level: 3, have: 4, need: 4, behind: 2 });
   });
 
-  it('Career income and role read your profile, and are separate domains', () => {
-    const s = computeState([], META, { netWageRon: 6000, positionRank: 0 }, C);
-    expect(domain(s, 'career', 'income').level).toBe(4);
-    expect(domain(s, 'career', 'role').level).toBe(1);
-    expect(stat(s, 'career').tier).toBe(1); // a good wage alone is not a rounded career
+  it('detects pull-up milestones from task text, and only with clean form', () => {
+    const strict = ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport', completedAt: '2026-11-10T10:00:00Z' });
+    const dips = ev({ content: 'Strict dips – 3x15', projectId: 'sport', completedAt: '2026-11-10T10:05:00Z' });
+    expect(domain(calc([strict, dips]), 'body', 'strength').level).toBe(4);
+    const sloppy = calc([ev({ content: 'Straight bar dips – 3x15', projectId: 'sport' })]);
+    expect(domain(sloppy, 'body', 'strength').level).toBe(1);
+    expect(domain(sloppy, 'body', 'strength').milestones.find((m) => m.level === 4)!.note).toContain('no proof of clean form');
   });
 
   it('habit milestones come from weekly streaks in your tasks', () => {
     const weeks = Array.from({ length: 12 }, (_, i) =>
       ev({ content: 'Fă curat', labels: ['Upkeep', 'Easy'], completedAt: daysAfter('2026-01-05T09:00:00Z', i * 7) }),
     );
-    const s = computeState(weeks, META, STUDENT, C);
-    expect(domain(s, 'upkeep', 'cleanliness').level).toBe(4); // 10 weeks in a row
+    expect(domain(calc(weeks), 'upkeep', 'cleanliness').level).toBe(4); // 10 weeks in a row
   });
 
-  it('keeps counting streaks only for the matching stat', () => {
+  it('Barou study days count toward Law & reasoning', () => {
+    const weeks = Array.from({ length: 12 }, (_, i) =>
+      ev({ content: 'Drept civil: Posesia', projectId: 'barou', labels: ['Barou', 'Mind'], completedAt: daysAfter('2026-08-03T09:00:00Z', i * 7) }),
+    );
+    expect(domain(calc(weeks), 'mind', 'law').level).toBe(2);
+  });
+
+  it('career and spirit tasks are not scored at all', () => {
+    const s = calc([ev({ content: 'Trimite mail', labels: ['Duty', 'Easy'] }), ev({ content: 'Terapie', labels: ['Spirit'] })]);
+    expect(s.milestonesDone).toBe(0);
+    expect(s.stats.map((x) => x.completions)).toEqual([0, 0, 0]);
+  });
+
+  it('level weights Body and Mind double', () => {
+    const s = calc([], { ...claimAll('mind', [2, 3]), ...claimAll('body', [2]) });
+    expect(stat(s, 'mind').tier).toBe(3);
+    expect(stat(s, 'body').tier).toBe(2);
+    expect(s.level).toBe(2 * 2 + 2 * 3 + 1 - 4);
+  });
+});
+
+describe('ever achieved vs currently valid', () => {
+  it('a body milestone lapses from current after its window, but the tier does not drop', () => {
+    const old = claimAll('body', [2, 3, 4], '2026-01-01'); // 321 days before NOW; skills fade at 180
+    const s = calc([], old);
+    const skills = domain(s, 'body', 'skills');
+    expect(skills.level).toBe(4);
+    expect(skills.currentLevel).toBe(1);
+    expect(skills.milestones.find((m) => m.level === 4)!.current).toBe(false);
+    expect(stat(s, 'body').tier).toBe(4); // ever achieved still counts
+  });
+
+  it('confirming again makes it current', () => {
+    const fresh = calc([], { 'body.skills.4': '2026-11-10' });
+    expect(domain(fresh, 'body', 'skills').currentLevel).toBe(4);
+  });
+
+  it('knowledge never fades', () => {
+    const s = calc([], { 'mind.philosophy.4': '2015-01-01' });
+    expect(domain(s, 'mind', 'philosophy').currentLevel).toBe(4);
+  });
+
+  it('a task that repeats a feat keeps it current', () => {
+    const first = ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport', completedAt: '2026-01-10T10:00:00Z' });
+    const again = ev({ content: 'Strict pull-ups, bodyweight – 2x10', projectId: 'sport', completedAt: '2026-11-10T10:00:00Z' });
+    expect(domain(calc([first]), 'body', 'strength').currentLevel).toBe(1);
+    expect(domain(calc([first, again]), 'body', 'strength').currentLevel).toBe(3);
+  });
+});
+
+describe('streaks', () => {
+  it('counts consecutive weeks', () => {
     expect(bestStreak(new Map([[1, 2], [2, 1], [3, 3], [5, 1], [6, 1]]), 1)).toBe(3);
     expect(bestStreak(new Map([[1, 2], [2, 1], [3, 3], [5, 1], [6, 1]]), 2)).toBe(1);
-  });
-
-  it('progress starts at zero and only reaches 100% at the top tier', () => {
-    const empty = computeState([], META, STUDENT, C);
-    expect(empty.stats.every((x) => x.progress === 0)).toBe(true);
-    const some = computeState([], META, STUDENT, C, { 'body.strength.2': '2026-01-01', 'body.endurance.2': '2026-01-01' });
-    const body = some.stats.find((x) => x.def.id === 'body')!;
-    expect(body.progress).toBeGreaterThan(0.5);
-    expect(body.progress).toBeLessThan(1);
-  });
-
-  it('level is the sum of tiers, with five tier-1 stats being level 1', () => {
-    const claims: Record<string, string> = {};
-    for (const d of DOMAINS.mind) for (const l of [2, 3]) claims[`mind.${d.id}.${l}`] = '2026-01-01';
-    const s = computeState([], META, STUDENT, C, claims);
-    expect(stat(s, 'mind').tier).toBe(3);
-    expect(s.level).toBe(3);
   });
 });

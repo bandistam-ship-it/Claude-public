@@ -1,7 +1,7 @@
 // Core domain types. The engine is pure: (events, meta, profile, claims, config) -> CharacterState.
 // There is no XP. Progress is milestones: concrete things you have done or can do.
 
-export type StatId = 'body' | 'mind' | 'upkeep' | 'spirit' | 'career';
+export type StatId = 'body' | 'mind' | 'upkeep';
 export type Bucket = StatId | 'neutral' | 'ignored';
 
 /** One completion of a Todoist task (recurring tasks produce one per occurrence). */
@@ -27,14 +27,6 @@ export interface TodoistMeta {
   sections: Record<string, { name: string; projectId: string }>;
 }
 
-/** What Todoist can't know: entered by hand, stays in the browser. */
-export interface Profile {
-  /** Net monthly wage in RON. */
-  netWageRon: number;
-  /** Index into config.career.positions (0 = student / no job). */
-  positionRank: number;
-}
-
 /** Milestones the user ticked off by hand: id -> ISO date. */
 export type Claims = Record<string, string>;
 
@@ -46,6 +38,8 @@ export interface StatDef {
   emoji: string;
   /** 7 tier titles, index 0 = tier 1. */
   tiers: string[];
+  /** How much this stat counts toward the overall level. */
+  weight: number;
   /** Archetype when this stat dominates and the character is lopsided. */
   archetype: { name: string; blurb: string };
 }
@@ -55,8 +49,6 @@ export type Auto =
   | { feat: string }
   | { streak: { weeks: number; perWeek: number; pattern?: string } }
   | { count: { min: number; pattern?: string } }
-  | { wage: number }
-  | { position: number }
   | { all: Auto[] }
   | { any: Auto[] };
 
@@ -69,6 +61,11 @@ export interface MilestoneDef {
 export interface DomainDef {
   id: string;
   name: string;
+  /**
+   * Days after which an unconfirmed milestone stops being "currently valid". It stays "ever
+   * achieved" and never lowers your tier. Omitted = never lapses.
+   */
+  decayDays?: number;
   ladder: MilestoneDef[];
 }
 
@@ -115,7 +112,6 @@ export interface EngineConfig {
   needDomainShare: number;
   imbalanceThreshold: number;
   mapping: MappingRule[];
-  career: { positions: string[] };
 }
 
 // ---------- Output ----------
@@ -131,7 +127,12 @@ export interface MilestoneState {
   /** Level this milestone unlocks (2..7). */
   level: number;
   text: string;
+  /** Ever achieved. */
   achieved: boolean;
+  /** Achieved and, if the domain fades, confirmed recently enough to count as currently valid. */
+  current: boolean;
+  /** When it was achieved or last confirmed (ticked date, or the matching task). */
+  confirmedAt?: string;
   /** 'implied': a higher rung in the same domain is achieved, so this one must be too. */
   source: 'claimed' | 'auto' | 'implied' | null;
   claimedAt?: string;
@@ -141,8 +142,10 @@ export interface MilestoneState {
 
 export interface DomainState {
   def: DomainDef;
-  /** Highest achieved level (1 = nothing yet). Lower rungs are implied. */
+  /** Best level ever achieved (1 = nothing yet). Lower rungs are implied. */
   level: number;
+  /** Highest level that is currently valid. Never above `level`. */
+  currentLevel: number;
   milestones: MilestoneState[];
 }
 
@@ -157,17 +160,22 @@ export interface StatState {
   progress: number;
   /** What stands between you and the next tier, in plain words. */
   nextNeeds: string[];
+  /** Exact requirement count for the next tier. */
+  nextReq: { level: number; have: number; need: number; behind: number } | null;
 }
 
 export interface DetectedFeat {
   def: FeatDef;
   status: 'counted' | 'needs-clean-form';
+  /** The first qualifying completion. */
   event: CompletionEvent;
+  /** The most recent qualifying completion (counted feats only). */
+  lastAt?: string;
 }
 
 export interface CharacterState {
   stats: StatState[];
-  /** Sum of tiers, shifted so five tier-1 stats are level 1. */
+  /** Weighted sum of tiers, shifted so all-tier-1 is level 1. Body and Mind count double. */
   level: number;
   milestonesDone: number;
   milestonesTotal: number;

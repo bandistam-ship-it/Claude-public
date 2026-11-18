@@ -152,3 +152,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .rung__tag { display: block; margin-left: 3.4rem; font-size: 0.75rem; color: var(--muted); }
 .rung__note { display: block; margin-left: 3.4rem; font-size: 0.78rem; color: var(--locked); }
 .rung input { width: 18px; height: 18px; accent-color: var(--accent-2); }
+
+/* Unlocks, lapsed state */
+.unlocks h3 { margin: 12px 0 4px; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.plain { list-style: none; margin: 0; padding: 0; }
+.plain li { padding: 4px 0; font-size: 0.9rem; display: flex; flex-direction: column; }
+.lapsed { color: var(--locked); }
+.link { all: unset; color: var(--accent-2); text-decoration: underline; cursor: pointer; }
+.link:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }

@@ -4,13 +4,13 @@ import { PixelScene } from './pixel/PixelScene';
 export function Character({ state }: { state: CharacterState }) {
   const tier = (id: StatId) => state.stats.find((s) => s.def.id === id)?.tier ?? 1;
   const title = (id: StatId) => state.stats.find((s) => s.def.id === id)?.title ?? '';
-  const label = `${state.archetype.name}: body ${title('body')}, mind ${title('mind')}, room ${title('upkeep')}, spirit ${title('spirit')}, career ${title('career')}`;
+  const label = `${state.archetype.name}: body ${title('body')}, mind ${title('mind')}, room ${title('upkeep')}`;
 
   return (
     <section className="scene" aria-label="Your character in his room">
       <PixelScene
         label={label}
-        tiers={{ body: tier('body'), mind: tier('mind'), upkeep: tier('upkeep'), spirit: tier('spirit'), career: tier('career') }}
+        tiers={{ body: tier('body'), mind: tier('mind'), upkeep: tier('upkeep') }}
       />
       <div className="scene__caption">
         <div className="archetype">{state.archetype.name}</div>

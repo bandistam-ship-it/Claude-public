@@ -62,8 +62,6 @@ export function Settings({ settings, onChange, onSync, onReimport, onDemo, busy,
         </label>
       </details>}
 
-      <p className="muted small">Position and wage live in the “My situation” card on the Character tab.</p>
-
       <h3>Balance</h3>
       <label>
         Imbalance threshold (tier gap that makes you lopsided)

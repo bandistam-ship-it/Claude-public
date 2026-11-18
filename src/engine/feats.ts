@@ -57,10 +57,13 @@ export function detectFeats(
   for (const { event, bucket } of events) {
     for (const feat of config.feats) {
       const existing = out.get(feat.id);
-      if (existing?.status === 'counted') continue;
       const m = matchFeat(event, bucket, feat);
       if (!m) continue;
-      out.set(feat.id, { def: feat, status: m, event });
+      if (existing?.status === 'counted') {
+        if (m === 'counted') existing.lastAt = event.completedAt; // events are sorted, so this is the latest
+        continue;
+      }
+      out.set(feat.id, { def: feat, status: m, event, lastAt: m === 'counted' ? event.completedAt : undefined });
     }
   }
   return [...out.values()];

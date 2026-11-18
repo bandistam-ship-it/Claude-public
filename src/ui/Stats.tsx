@@ -1,35 +1,48 @@
 import { useState } from 'react';
-import type { CharacterState, Claims, DomainState, StatState } from '../engine/types';
+import type { CharacterState, DomainState, StatState } from '../engine/types';
 
 interface Props {
   state: CharacterState;
-  claims: Claims;
   onToggle: (milestoneId: string) => void;
+  onConfirm: (milestoneId: string) => void;
 }
 
-function Domain({ d, onToggle }: { d: DomainState; onToggle: (id: string) => void }) {
+function Domain({ d, onToggle, onConfirm }: { d: DomainState; onToggle: (id: string) => void; onConfirm: (id: string) => void }) {
+  const fades = Boolean(d.def.decayDays);
+  const lapsed = d.currentLevel < d.level;
   return (
     <section className="domain">
       <h4 className="domain__title">
         <span>{d.def.name}</span>
-        <span className="domain__level" title="Highest milestone reached in this domain">L{d.level}</span>
+        <span className="domain__level" title="Best level ever reached">
+          best L{d.level}{fades && <> · now <span className={lapsed ? 'lapsed' : ''}>L{d.currentLevel}</span></>}
+        </span>
       </h4>
+      {fades && (
+        <p className="muted small">
+          Counts as current for {d.def.decayDays} days after you last did or confirmed it. Your tier never goes down.
+        </p>
+      )}
       <ul className="ladder">
         {d.milestones.map((m) => {
           const locked = m.source === 'auto' || m.source === 'implied';
+          const lapsedRung = m.achieved && !m.current && m.source !== 'implied';
           return (
             <li key={m.id} className={m.achieved ? 'rung rung--done' : 'rung'}>
               <label htmlFor={`ms-${m.id}`}>
-                <input
-                  id={`ms-${m.id}`} type="checkbox" checked={m.achieved} disabled={locked}
-                  onChange={() => onToggle(m.id)}
-                />
+                <input id={`ms-${m.id}`} type="checkbox" checked={m.achieved} disabled={locked} onChange={() => onToggle(m.id)} />
                 <span className="rung__lv">L{m.level}</span>
                 <span className="rung__text">{m.text}</span>
               </label>
-              {m.source === 'auto' && <span className="rung__tag">found in your tasks</span>}
+              {m.source === 'auto' && <span className="rung__tag">found in your tasks{m.confirmedAt ? `, last on ${m.confirmedAt}` : ''}</span>}
               {m.source === 'implied' && <span className="rung__tag">implied by a higher milestone</span>}
-              {m.source === 'claimed' && <span className="rung__tag">ticked {m.claimedAt}</span>}
+              {m.source === 'claimed' && <span className="rung__tag">confirmed {m.confirmedAt}</span>}
+              {lapsedRung && (
+                <span className="rung__note">
+                  Not confirmed recently.{' '}
+                  {m.source === 'claimed' && <button className="link" onClick={() => onConfirm(m.id)}>I can still do this</button>}
+                </span>
+              )}
               {m.note && <span className="rung__note">{m.note}</span>}
             </li>
           );
@@ -39,11 +52,11 @@ function Domain({ d, onToggle }: { d: DomainState; onToggle: (id: string) => voi
   );
 }
 
-function StatCard({ s, onToggle }: { s: StatState; onToggle: (id: string) => void }) {
+function StatCard({ s, onToggle, onConfirm }: { s: StatState; onToggle: (id: string) => void; onConfirm: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const done = s.domains.reduce((n, d) => n + d.milestones.filter((m) => m.achieved).length, 0);
   const total = s.domains.reduce((n, d) => n + d.milestones.length, 0);
-  const weakest = [...s.domains].sort((a, b) => a.level - b.level)[0];
+  const r = s.nextReq;
   return (
     <article className="stat">
       <button className="stat__head" onClick={() => setOpen(!open)} aria-expanded={open}>
@@ -57,11 +70,12 @@ function StatCard({ s, onToggle }: { s: StatState; onToggle: (id: string) => voi
         <div className="bar__fill" style={{ width: `${s.progress * 100}%` }} />
       </div>
       <div className="stat__sub">
-        {s.nextTitle === null ? (
-          <span>Legendary: impressive in every domain.</span>
+        {r === null ? (
+          <span>Legendary: capable in every domain.</span>
         ) : (
           <span className="muted">
-            Next: T{s.tier + 1} {s.nextTitle}. {s.nextNeeds[0] ?? `Weakest domain: ${weakest.def.name} (L${weakest.level}).`}
+            Next, T{r.level} {s.nextTitle}: {r.have} of {r.need} needed domains at level {r.level}
+            {r.behind > 0 ? `, ${r.behind} below level ${r.level - 1}` : ''}.
           </span>
         )}
       </div>
@@ -76,36 +90,30 @@ function StatCard({ s, onToggle }: { s: StatState; onToggle: (id: string) => voi
               </div>
             ))}
           </div>
-          {s.nextNeeds.length > 1 && <ul className="needs">{s.nextNeeds.map((n) => <li key={n}>{n}</li>)}</ul>}
+          {s.nextNeeds.length > 0 && <ul className="needs">{s.nextNeeds.map((n) => <li key={n}>{n}</li>)}</ul>}
           <p className="muted small">
-            A tier needs 3 of the 5 domains at that level, and none more than one level behind. {s.completions} matching tasks in your history.
+            A tier needs {r ? r.need : Math.ceil(s.domains.length * 0.6)} of the {s.domains.length} domains at that level, and none more than one level behind.
+            {' '}{s.completions} matching tasks in your history.
           </p>
-          {s.domains.map((d) => <Domain key={d.def.id} d={d} onToggle={onToggle} />)}
+          {s.domains.map((d) => <Domain key={d.def.id} d={d} onToggle={onToggle} onConfirm={onConfirm} />)}
         </div>
       )}
     </article>
   );
 }
 
-export function Stats({ state, onToggle }: Props) {
+export function Stats({ state, onToggle, onConfirm }: Props) {
   return (
     <section className="panel">
       <h2>Stats</h2>
       <p className="muted small">{state.milestonesDone} of {state.milestonesTotal} milestones. Tap a stat to see its domains and tick off milestones.</p>
-      {state.stats.map((s) => <StatCard key={s.def.id} s={s} onToggle={onToggle} />)}
+      {state.stats.map((s) => <StatCard key={s.def.id} s={s} onToggle={onToggle} onConfirm={onConfirm} />)}
     </section>
   );
 }
 
 export function Feats({ state }: { state: CharacterState }) {
-  if (!state.feats.length) {
-    return (
-      <section className="panel">
-        <h2>Found in your tasks</h2>
-        <p className="muted">Nothing detected yet. Feats such as “Strict pull-ups – 2x5” are recognised automatically.</p>
-      </section>
-    );
-  }
+  if (!state.feats.length) return null;
   return (
     <section className="panel">
       <h2>Found in your tasks</h2>

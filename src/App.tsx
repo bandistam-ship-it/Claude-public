@@ -13,6 +13,7 @@ import { Character } from './ui/Character';
 import { History } from './ui/History';
 import { Settings } from './ui/Settings';
 import { Feats, Stats } from './ui/Stats';
+import { Unlocks } from './ui/Unlocks';
 import { Situation } from './ui/Situation';
 
 const SYNC_EVERY_MS = 5 * 60_000;
@@ -88,9 +89,13 @@ export default function App() {
 
   const config = useMemo(() => buildConfig(settings), [settings]);
   const state = useMemo(
-    () => computeState(history.events, history.meta, settings.profile, config, settings.claims),
-    [history, settings.profile, config, settings.claims],
+    () => computeState(history.events, history.meta, config, settings.claims),
+    [history, config, settings.claims],
   );
+
+  const confirmClaim = (id: string) => {
+    updateSettings({ ...settings, claims: { ...settings.claims, [id]: new Date().toISOString().slice(0, 10) } });
+  };
 
   const toggleClaim = (id: string) => {
     const claims = { ...settings.claims };
@@ -145,12 +150,9 @@ export default function App() {
       {tab === 'character' && (
         <main className="grid">
           <Character state={state} />
-          <Situation
-            profile={settings.profile}
-            situation={settings.situation}
-            onChange={(profile, situation) => updateSettings({ ...settings, profile, situation })}
-          />
-          <Stats state={state} claims={settings.claims} onToggle={toggleClaim} />
+          <Unlocks state={state} />
+          <Stats state={state} onToggle={toggleClaim} onConfirm={confirmClaim} />
+          <Situation situation={settings.situation} onChange={(situation) => updateSettings({ ...settings, situation })} />
           <Feats state={state} />
         </main>
       )}

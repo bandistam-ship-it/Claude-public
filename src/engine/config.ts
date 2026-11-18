@@ -15,29 +15,19 @@ const SUCCESS = '(sustin|sustinut|sustinere|promovat|promovata|obtinut|obtinuta|
 export const DEFAULT_CONFIG: EngineConfig = {
   stats: [
     {
-      id: 'body', name: 'Body', emoji: '💪',
+      id: 'body', name: 'Body', emoji: '💪', weight: 2,
       tiers: ['Frail', 'Weak', 'Average', 'Fit', 'Athletic', 'Powerful', 'Legendary'],
       archetype: { name: 'Dumb Brute', blurb: 'Big muscles, blank stare.' },
     },
     {
-      id: 'mind', name: 'Mind', emoji: '🧠',
-      tiers: ['Clueless', 'Curious', 'Informed', 'Smart', 'Scholar', 'Sage', 'Genius'],
+      id: 'mind', name: 'Mind', emoji: '🧠', weight: 2,
+      tiers: ['Clueless', 'Curious', 'Informed', 'Learned', 'Scholar', 'Sage', 'Genius'],
       archetype: { name: 'Frail Bookworm', blurb: 'Skinny, thick glasses, never seen daylight.' },
     },
     {
-      id: 'upkeep', name: 'Upkeep', emoji: '🏰',
+      id: 'upkeep', name: 'Upkeep', emoji: '🏰', weight: 1,
       tiers: ['Pigsty', 'Messy', 'Livable', 'Tidy', 'Clean', 'Spotless', 'Palace'],
       archetype: { name: 'Obsessive Housekeeper', blurb: 'Spotless room, while he and the rest of his world fall apart.' },
-    },
-    {
-      id: 'spirit', name: 'Spirit', emoji: '🔥',
-      tiers: ['Hollow', 'Restless', 'Awake', 'Grounded', 'Serene', 'Luminous', 'Enlightened'],
-      archetype: { name: 'Lost Mystic', blurb: 'Deep inner world, no grip on the outer one.' },
-    },
-    {
-      id: 'career', name: 'Career', emoji: '📜',
-      tiers: ['Jobless', 'Apprentice', 'Journeyman', 'Professional', 'Expert', 'Partner', 'Magnate'],
-      archetype: { name: 'Workaholic', blurb: 'Sharp suit, empty flat, nobody to call.' },
     },
   ],
 
@@ -121,13 +111,6 @@ export const DEFAULT_CONFIG: EngineConfig = {
       id: 'published', stat: 'mind', name: 'Published work', rarity: 0.001,
       pattern: '\\b(publicat|publicata|published)\\b', proof: 'milestone',
     },
-
-    // ---- Spirit ----
-    {
-      id: 'creativeWork', stat: 'spirit', name: 'Finished creative work', rarity: 0.1,
-      pattern: '\\b(terminat|terminata|finalizat|finalizata|finished|completed|lansat|publicat|expus|concert|recital)\\b',
-      proof: 'milestone',
-    },
   ],
 
   imbalanceThreshold: 2,
@@ -139,19 +122,20 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { bucket: 'ignored', section: 'rewards vault' },
     { bucket: 'ignored', section: 'season board' },
     { bucket: 'ignored', section: 'trophy hall' },
+    // Career, Spirit and relationship tasks are deliberately not scored.
     // Explicit stat labels (The Realm).
-    { bucket: 'career', label: 'Profesie' },
-    { bucket: 'career', label: 'Duty' },
+    { bucket: 'ignored', label: 'Profesie' },
+    { bucket: 'ignored', label: 'Duty' },
     { bucket: 'body', label: 'Body' },
     { bucket: 'mind', label: 'Mind' },
     { bucket: 'upkeep', label: 'Upkeep' },
-    { bucket: 'spirit', label: 'Spirit' },
+    { bucket: 'ignored', label: 'Spirit' },
     // Relationships are deliberately not scored.
     { bucket: 'ignored', label: 'Bonds' },
     // Older / topical labels.
     { bucket: 'body', label: 'Health' },
-    { bucket: 'spirit', label: 'MentalHealth' },
-    { bucket: 'spirit', label: 'Scribe' },
+    { bucket: 'ignored', label: 'MentalHealth' },
+    { bucket: 'ignored', label: 'Scribe' },
     { bucket: 'ignored', label: 'Friends' },
     { bucket: 'ignored', label: 'family' },
     ...['Licenta', 'Barou', 'Civil', 'Penal', 'ProcCivila', 'ProcPenala', 'Grile'].map(
@@ -163,9 +147,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { bucket: 'upkeep', section: 'keep' },
     { bucket: 'upkeep', section: 'castle' },
     { bucket: 'ignored', section: 'tavern' },
-    { bucket: 'spirit', section: 'bonfire' },
-    { bucket: 'career', section: 'chancery' },
-    { bucket: 'career', section: 'war' },
+    { bucket: 'ignored', section: 'bonfire' },
+    { bucket: 'ignored', section: 'chancery' },
+    { bucket: 'ignored', section: 'war' },
     // Whole projects.
     { bucket: 'body', project: 'sport' },
     { bucket: 'mind', project: 'barou' },
@@ -173,20 +157,6 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { bucket: 'body', keywords: ['antrenament', 'sala', 'gym', 'alerg', 'run', 'pull', 'push', 'flotari', 'tractiun', 'calistenic', 'squat', 'genuflexiun', 'plank', 'handstand', 'muscle', 'workout', 'inot', 'swim', 'bicicl'] },
     { bucket: 'mind', keywords: ['citeste', 'citit', 'invata', 'studiu', 'studia', 'curs', 'examen', 'seminar', 'licent', 'carte', 'read', 'study', 'lectur', 'fisa', 'recapitul', 'grile'] },
     { bucket: 'upkeep', keywords: ['curat', 'spala', 'aspira', 'vase', 'rufe', 'calca', 'gunoi', 'plante', 'cumparatur', 'clean', 'laundry', 'ordine', 'dulap', 'frigider', 'tuns'] },
-    { bucket: 'spirit', keywords: ['terapie', 'therapy', 'scrie', 'jurnal', 'journal', 'medit', 'muzica', 'chitara', 'pian', 'desen', 'picte', 'reflect'] },
-    { bucket: 'career', keywords: ['factura', 'plateste', 'plata', 'mail', 'acte', 'dosar', 'banca', 'abonament', 'contract', 'cv', 'interviu', 'job', 'stagiu', 'avocat', 'anaf', 'formular'] },
     { bucket: 'ignored', keywords: ['ziua', 'cadou', 'suna', 'intalnire', 'prieten', 'familie', 'mama', 'tata', 'bunic', 'party', 'petrecere', 'botez', 'nunta', 'vizita'] },
   ],
-
-  career: {
-    positions: [
-      'Student / no job',
-      'First job or internship',
-      'Trainee lawyer (avocat stagiar)',
-      'Qualified lawyer (avocat definitiv)',
-      'Own practice or senior associate',
-      'Partner',
-      'Managing partner / recognised authority',
-    ],
-  },
 };
