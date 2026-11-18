@@ -7,7 +7,6 @@ const LAYERS: Record<StatId, string[]> = {
   upkeep: ['🗑️🪳🧦🍕', '🧦📦🥡', '🛏️📦', '🛏️🪴', '🛋️🪴🖼️', '🛋️🪴🖼️✨', '🏛️🪴🖼️👑'], // the room
   spirit: ['', '🌫️', '🕯️', '🔥', '✨', '🌟', '☀️'], // the aura
   career: ['🩳', '👕', '👔', '💼', '🎩', '⚖️', '👑'], // the outfit
-  bonds: ['', '🐀', '🐈', '🧑‍🤝‍🧑', '👥', '👨‍👩‍👧', '🎆'], // company
 };
 
 export function Character({ state }: { state: CharacterState }) {
@@ -25,7 +24,6 @@ export function Character({ state }: { state: CharacterState }) {
         <span className="scene__face" title="Mind">{layer('mind')}</span>
         <span className="scene__body" title="Body">{layer('body')}</span>
         <span className="scene__outfit" title="Career">{layer('career')}</span>
-        <span className="scene__company" title="Bonds">{layer('bonds')}</span>
       </div>
       <div className="scene__caption">
         <div className="archetype">

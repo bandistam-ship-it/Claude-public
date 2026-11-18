@@ -1,7 +1,7 @@
 # ⚔️ Realm Companion
 
 A browser app that reads your completed Todoist tasks and turns them into an RPG character whose
-body, mind, home, spirit, career and bonds evolve with **what** you do and **how balanced** it is.
+body, mind, home, spirit and career evolve with **what** you do and **how balanced** it is.
 
 - **Realistic difficulty.** XP measures effort, but each tier also has a **hard gate** grounded in
   real life: how rare a feat is in the population (a first pull-up, a muscle-up), real milestones

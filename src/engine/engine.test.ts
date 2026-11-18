@@ -59,10 +59,14 @@ describe('classify', () => {
   });
   it('maps The Town by section and Sport/Barou by project', () => {
     expect(b(ev({ content: 'Schimbă apa la țestoase', projectId: 'town', sectionId: 'castle' }))).toBe('upkeep');
-    expect(b(ev({ content: 'Trimite mesaj unui prieten', projectId: 'town', sectionId: 'tavern' }))).toBe('bonds');
+    expect(b(ev({ content: 'Trimite mesaj unui prieten', projectId: 'town', sectionId: 'tavern' }))).toBe('ignored');
     expect(b(ev({ content: 'Day B – Transition Skill', projectId: 'sport' }))).toBe('body');
     expect(b(ev({ content: 'Day A – Deload', projectId: 'meso2' }))).toBe('body');
     expect(b(ev({ content: 'Drept civil: Posesia', projectId: 'barou' }))).toBe('mind');
+  });
+  it('never scores relationships', () => {
+    expect(b(ev({ content: 'Ieșire cu prietenii', labels: ['Bonds', 'Easy'] }))).toBe('ignored');
+    expect(b(ev({ content: 'Sună-o pe mama' }))).toBe('ignored');
   });
   it('ignores rewards, uses keywords for the Inbox, else neutral', () => {
     expect(b(ev({ content: 'Botez la prieteni', labels: ['Friends', 'Rewards'] }))).toBe('ignored');

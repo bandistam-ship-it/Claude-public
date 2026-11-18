@@ -1,6 +1,6 @@
 // Core domain types. The engine is pure: (events, meta, profile, config) -> CharacterState.
 
-export type StatId = 'body' | 'mind' | 'upkeep' | 'spirit' | 'career' | 'bonds';
+export type StatId = 'body' | 'mind' | 'upkeep' | 'spirit' | 'career';
 export type Bucket = StatId | 'neutral' | 'ignored';
 
 /** One completion of a Todoist task (recurring tasks produce one per occurrence). */

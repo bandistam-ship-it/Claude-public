@@ -57,11 +57,6 @@ export const DEFAULT_CONFIG: EngineConfig = {
       tiers: ['Jobless', 'Apprentice', 'Journeyman', 'Professional', 'Expert', 'Partner', 'Magnate'],
       archetype: { name: 'Workaholic', blurb: 'Sharp suit, empty flat, nobody to call.' },
     },
-    {
-      id: 'bonds', name: 'Bonds', emoji: '🍺',
-      tiers: ['Hermit', 'Loner', 'Acquaintance', 'Friend', 'Companion', 'Beloved', 'Heart of the Realm'],
-      archetype: { name: 'Party Animal', blurb: 'Everyone’s best friend, nothing else to show for it.' },
-    },
   ],
 
   tierXp: TIER_XP,
@@ -101,7 +96,6 @@ export const DEFAULT_CONFIG: EngineConfig = {
       { all: [{ type: 'wage', minNetRon: 20000 }, { type: 'position', minRank: 5 }], text: 'Earn ≥ 20,000 RON net (top ~1%) AND partner' },
       { all: [{ type: 'wage', minNetRon: 40000 }, { type: 'position', minRank: 6 }], text: 'Earn ≥ 40,000 RON net (top ~0.1%) AND managing partner / authority' },
     ],
-    bonds: consistencyGates('Time with people'),
   },
 
   feats: [
@@ -215,13 +209,14 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { bucket: 'mind', label: 'Mind' },
     { bucket: 'upkeep', label: 'Upkeep' },
     { bucket: 'spirit', label: 'Spirit' },
-    { bucket: 'bonds', label: 'Bonds' },
+    // Relationships are deliberately not scored.
+    { bucket: 'ignored', label: 'Bonds' },
     // Older / topical labels.
     { bucket: 'body', label: 'Health' },
     { bucket: 'spirit', label: 'MentalHealth' },
     { bucket: 'spirit', label: 'Scribe' },
-    { bucket: 'bonds', label: 'Friends' },
-    { bucket: 'bonds', label: 'family' },
+    { bucket: 'ignored', label: 'Friends' },
+    { bucket: 'ignored', label: 'family' },
     ...['Licenta', 'Barou', 'Civil', 'Penal', 'ProcCivila', 'ProcPenala', 'Grile'].map(
       (label) => ({ bucket: 'mind' as const, label }),
     ),
@@ -230,7 +225,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { bucket: 'body', section: 'barracks' },
     { bucket: 'upkeep', section: 'keep' },
     { bucket: 'upkeep', section: 'castle' },
-    { bucket: 'bonds', section: 'tavern' },
+    { bucket: 'ignored', section: 'tavern' },
     { bucket: 'spirit', section: 'bonfire' },
     { bucket: 'career', section: 'chancery' },
     { bucket: 'career', section: 'war' },
@@ -243,7 +238,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { bucket: 'upkeep', keywords: ['curat', 'spala', 'aspira', 'vase', 'rufe', 'calca', 'gunoi', 'plante', 'cumparatur', 'clean', 'laundry', 'ordine', 'dulap', 'frigider', 'tuns'] },
     { bucket: 'spirit', keywords: ['terapie', 'therapy', 'scrie', 'jurnal', 'journal', 'medit', 'muzica', 'chitara', 'pian', 'desen', 'picte', 'reflect'] },
     { bucket: 'career', keywords: ['factura', 'plateste', 'plata', 'mail', 'acte', 'dosar', 'banca', 'abonament', 'contract', 'cv', 'interviu', 'job', 'stagiu', 'avocat', 'anaf', 'formular'] },
-    { bucket: 'bonds', keywords: ['ziua', 'cadou', 'suna', 'intalnire', 'prieten', 'familie', 'mama', 'tata', 'bunic', 'party', 'petrecere', 'botez', 'nunta', 'vizita'] },
+    { bucket: 'ignored', keywords: ['ziua', 'cadou', 'suna', 'intalnire', 'prieten', 'familie', 'mama', 'tata', 'bunic', 'party', 'petrecere', 'botez', 'nunta', 'vizita'] },
   ],
 
   career: {

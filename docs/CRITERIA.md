@@ -68,7 +68,7 @@ brackets, the rough global equivalent in 2021 PPP dollars (ILO).
 | 6 Partner | 20,000 | ~1%, estimate (≈ $15,000) | Partner |
 | 7 Magnate | 40,000 | ~0.1%, estimate (≈ $30,000) | Managing partner / authority |
 
-### Upkeep, Spirit, Bonds: consistency
+### Upkeep, Spirit: consistency
 Habits take ~66 days (≈ 10 weeks) to form on average (Lally et al., 2010).
 
 | Tier | Gate |
@@ -80,12 +80,16 @@ Habits take ~66 days (≈ 10 weeks) to form on average (Lally et al., 2010).
 | 6 | Twice a week for 26 weeks |
 | 7 | Twice a week for 52 weeks |
 
+## Not scored
+Relationships (Bonds/Friends/family labels, the Tavern section, social keywords) are deliberately
+not scored: they earn no XP of any kind. Neither do rewards and reference cards.
+
 ## Archetype
 Tier gap between the highest and lowest stat, compared with the imbalance threshold (default 2):
 - All tiers ≤ 2 → **Basement Nerd**
 - All tiers ≥ 4 and gap ≤ 1 → **Renaissance Hero**
 - Gap ≥ threshold → the dominant stat's archetype: Dumb Brute (Body), Frail Bookworm (Mind),
-  Obsessive Housekeeper (Upkeep), Lost Mystic (Spirit), Workaholic (Career), Party Animal (Bonds)
+  Obsessive Housekeeper (Upkeep), Lost Mystic (Spirit), Workaholic (Career)
 - Otherwise → **Wandering Adventurer**
 
 ## Data quality and sources

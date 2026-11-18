@@ -10,7 +10,6 @@ export function demoHistory(): History {
       bonfire: { name: '🔥 Bonfire', projectId: 'realm' },
       keep: { name: '🏰 Keep', projectId: 'realm' },
       chancery: { name: '📜 Chancery', projectId: 'realm' },
-      tavern: { name: '🍺 Tavern', projectId: 'realm' },
       boss: { name: '🐉 Boss Fights', projectId: 'realm' },
     },
   };
@@ -41,7 +40,6 @@ export function demoHistory(): History {
     if (dow === 6) add(day, { content: 'Fă curat', sectionId: 'keep', labels: ['Easy', 'Upkeep'] });
     if (day % 14 === 1) add(day, { content: 'Jurnal de seară', sectionId: 'bonfire', labels: ['Medium', 'Spirit'], durationMin: 30 });
     if (day % 10 === 3) add(day, { content: 'Trimite mail', sectionId: 'chancery', labels: ['Duty', 'Easy'] });
-    if (day % 21 === 5) add(day, { content: 'Ieșire cu prietenii', sectionId: 'tavern', labels: ['Bonds', 'Easy'] });
   }
   add(188, { content: 'Primul muscle up', sectionId: 'boss', labels: ['Achievement', 'Body', 'Boss-fight'] });
   return { events, meta, lastSync: null };

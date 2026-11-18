@@ -126,7 +126,7 @@ export function levelOf(totalXp: number): { level: number; progress: number } {
 }
 
 const ARCHETYPE_EMOJI: Record<StatId, string> = {
-  body: '🦍', mind: '🧐', upkeep: '🧹', spirit: '🔮', career: '💼', bonds: '🎉',
+  body: '🦍', mind: '🧐', upkeep: '🧹', spirit: '🔮', career: '💼',
 };
 
 export function archetypeOf(stats: StatState[], config: EngineConfig): CharacterState['archetype'] {
@@ -193,7 +193,7 @@ export function computeState(
     const result: ScoredEvent = { event, bucket, reason, xp: 0, breakdown: '' };
 
     if (bucket === 'ignored') {
-      result.breakdown = 'ignored (rewards / reference card)';
+      result.breakdown = 'not scored';
     } else if (bucket === 'neutral') {
       result.xp = config.neutralXp;
       result.breakdown = `neutral ${config.neutralXp}`;

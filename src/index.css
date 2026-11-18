@@ -67,12 +67,11 @@ code { font-size: 0.85em; }
 .scene { background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
 .scene--messy { background: repeating-linear-gradient(-45deg, var(--panel-2) 0 12px, var(--panel) 12px 24px); }
 .scene__room { font-size: 2rem; letter-spacing: 0.25rem; min-height: 2.5rem; }
-.scene__figure { display: grid; grid-template-areas: '. aura .' 'company face .' 'company body .' '. outfit .'; justify-content: center; align-items: center; font-size: 2.6rem; line-height: 1.1; margin: 12px 0; }
+.scene__figure { display: grid; grid-template-areas: 'aura' 'face' 'body' 'outfit'; justify-content: center; align-items: center; font-size: 2.6rem; line-height: 1.1; margin: 12px 0; }
 .scene__aura { grid-area: aura; font-size: 1.6rem; min-height: 1.6rem; }
 .scene__face { grid-area: face; }
 .scene__body { grid-area: body; font-size: 3.4rem; }
 .scene__outfit { grid-area: outfit; font-size: 1.8rem; }
-.scene__company { grid-area: company; font-size: 1.8rem; padding-right: 8px; }
 .archetype { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
 .archetype__emoji { font-size: 1.6rem; }
 .level { margin-top: 8px; text-align: left; }
