@@ -1,4 +1,5 @@
 // Logica jocului. Functii care muteaza un obiect `state` si intorc evenimentele noi.
+import { FAIL_VARIANTS, WIN_VARIANTS } from './variants.js';
 import { DOMAINS, DOMAIN_NAMES, RANKS, SOURCES, WINS, HABIT, RIVALS, HEIR_NAMES, CONQUEST_FLAVOR } from './data.js';
 
 export const START_RECOGNITION = 50;
@@ -12,9 +13,6 @@ export function newState(now = new Date()) {
     conquered: {},        // id -> { at }
     lost: {},             // id -> { rival, at }
     territoryStart: {},   // id -> ISO, de cand conteaza progresul
-    manualDone: {},       // id -> true
-    manualCount: {},      // id -> n
-    links: {},            // id -> taskId Todoist
     recognition: Object.fromEntries(DOMAINS.map((d) => [d, START_RECOGNITION])),
     history: [],          // saptamani inchise
     lowStreak: 0,
@@ -32,14 +30,19 @@ const log = (state, now, kind, text, extra = {}) => {
   return ev;
 };
 
+// Un task bifat conteaza pentru teritoriu daca are [Nume], #id in titlu sau eticheta cu id-ul.
+export function hasTag(task, t) {
+  const c = (task.content || '').toLowerCase();
+  return c.includes(`[${t.name.toLowerCase()}]`) || c.includes(`[${t.id}]`) || c.includes(`#${t.id}`) || (task.labels || []).includes(t.id);
+}
+
 export const isAvailable = (t, state) => t.tier <= state.rank + 1 && !t.sketchLocked;
 export const startOf = (state, t) => state.territoryStart[t.id] || state.createdAt;
 
 // Progres catre tinta unui teritoriu. ctx.tasks = task-uri bifate (cu completedAt, domain, id)
 export function evaluate(t, state, ctx = { tasks: [] }) {
   const since = new Date(startOf(state, t));
-  const linked = state.links[t.id] || t.todoistTaskId;
-  const linkDone = linked ? ctx.tasks.some((x) => x.id === String(linked) && new Date(x.completedAt) >= since) : false;
+  const tagDone = ctx.tasks.some((x) => hasTag(x, t) && new Date(x.completedAt) >= since);
   let progress = 0, goal = 1;
   switch (t.type) {
     case 'streak': {
@@ -50,8 +53,7 @@ export function evaluate(t, state, ctx = { tasks: [] }) {
     }
     case 'taskCount': {
       goal = t.count;
-      progress = (state.manualCount[t.id] || 0) +
-        ctx.tasks.filter((x) => x.domain === t.domain && new Date(x.completedAt) >= since).length;
+      progress = ctx.tasks.filter((x) => x.domain === t.domain && new Date(x.completedAt) >= since).length;
       break;
     }
     case 'weeklyDomain': {
@@ -62,8 +64,8 @@ export function evaluate(t, state, ctx = { tasks: [] }) {
     default:
       progress = 0; goal = 1;
   }
-  const done = Boolean(state.manualDone[t.id]) || linkDone || (t.type !== 'manual' && progress >= goal);
-  return { progress: Math.min(progress, goal), goal, done, linked: linked || null };
+  const done = tagDone || (t.type !== 'tag' && progress >= goal);
+  return { progress: done ? goal : Math.min(progress, goal), goal, done };
 }
 
 function conquer(state, t, now, events) {
@@ -97,19 +99,6 @@ export function checkConquests(state, terrs, ctx, now = new Date()) {
   return events;
 }
 
-// Cucerire/progres manual dintr-un buton.
-export function manualConquer(state, terrs, id, now = new Date()) {
-  const t = byId(terrs)[id];
-  if (!t) throw new Error('Teritoriu necunoscut');
-  if (!isAvailable(t, state)) throw new Error('Teritoriul nu e încă disponibil la rangul tău');
-  if (state.conquered[id]) throw new Error('Teritoriul e deja al tău');
-  state.manualDone[id] = true;
-  const events = [];
-  conquer(state, t, now, events);
-  promote(state, terrs, now, events);
-  return events;
-}
-
 const holdTiers = (rank) => (rank <= 1 ? [2] : [rank]);
 
 function demoteIfEmpty(state, terrs, now, events) {
@@ -117,7 +106,7 @@ function demoteIfEmpty(state, terrs, now, events) {
     const held = terrs.filter((t) => holdTiers(state.rank).includes(t.tier) && state.conquered[t.id]);
     if (held.length) return;
     if (state.rank === 1 && state.conquered.obor) {
-      delete state.conquered.obor; delete state.manualDone.obor;
+      delete state.conquered.obor;
       state.territoryStart.obor = now.toISOString();
     }
     state.rank -= 1;
@@ -141,8 +130,6 @@ function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
   const victim = (dom && conqueredList.find((t) => t.domain === dom)) || conqueredList[0];
   const rival = pick(RIVALS, rng);
   delete state.conquered[victim.id];
-  delete state.manualDone[victim.id];
-  state.manualCount[victim.id] = 0;
   state.territoryStart[victim.id] = now.toISOString();
   state.lost[victim.id] = { rival, at: now.toISOString() };
   const habit = HABIT[victim.domain] || 'săptămâna în mână';
@@ -154,10 +141,16 @@ function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
 }
 
 function domainEvent(state, kind, domain, rng, now, events) {
-  const table = kind === 'fail' ? SOURCES : WINS;
-  const text = table[groupOf(state.rank)][domain];
-  events.push(log(state, now, kind === 'fail' ? 'bad' : 'good', `${DOMAIN_NAMES[domain]}: ${text}`, { domain }));
-  void rng;
+  const base = kind === 'fail' ? SOURCES : WINS;
+  const vars = kind === 'fail' ? FAIL_VARIANTS : WIN_VARIANTS;
+  const group = groupOf(state.rank);
+  const options = [base[group][domain], ...(vars[group]?.[domain] || [])];
+  const key = `${kind}:${group}:${domain}`;
+  const last = state.lastEvents[key];
+  const pool = options.map((_, i) => i).filter((i) => i !== last || options.length === 1);
+  const idx = pool[Math.floor(rng() * pool.length) % pool.length];
+  state.lastEvents[key] = idx;
+  events.push(log(state, now, kind === 'fail' ? 'bad' : 'good', `${DOMAIN_NAMES[domain]}: ${options[idx]}`, { domain }));
 }
 
 function die(state, now, events) {
@@ -167,7 +160,7 @@ function die(state, now, events) {
   events.push(log(state, now, 'death', `${old.name} (generația ${old.generation}) s-a stins, iar numele lui rămâne în jurnalul dinastiei.`));
   const heirName = HEIR_NAMES[(old.generation) % HEIR_NAMES.length];
   state.dynasty = { generation: old.generation + 1, name: heirName, trait: { domain: strongest, bonus: 15 }, bornAt: now.toISOString() };
-  state.rank = 0; state.conquered = {}; state.lost = {}; state.manualDone = {}; state.manualCount = {};
+  state.rank = 0; state.conquered = {}; state.lost = {};
   state.territoryStart = {}; state.createdAt = now.toISOString(); state.lowStreak = 0;
   state.recognition = Object.fromEntries(DOMAINS.map((d) => [d, START_RECOGNITION + (d === strongest ? 15 : 0)]));
   events.push(log(state, now, 'heir', `${heirName} preia numele. Moștenește recunoaștere în ${DOMAIN_NAMES[strongest]} (+15).`));
@@ -176,6 +169,7 @@ function die(state, now, events) {
 // Inchide o saptamana. week = { key, score, domains:{d:{count,points,ratio}} }
 export function closeWeek(state, terrs, week, ctx, cfg, rng = Math.random, now = new Date()) {
   const events = [];
+  state.lastEvents ||= {};
   if (state.history.some((w) => w.key === week.key)) throw new Error(`Săptămâna ${week.key} e deja închisă`);
   state.history.push({ key: week.key, score: week.score, domains: week.domains, closedAt: now.toISOString() });
 

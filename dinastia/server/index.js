@@ -1,11 +1,12 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { RANKS, DOMAINS, DOMAIN_NAMES, STEP_FACTORS } from './data.js';
-import { newState, evaluate, isAvailable, checkConquests, manualConquer, closeWeek } from './game.js';
+import { newState, evaluate, isAvailable, checkConquests, closeWeek } from './game.js';
 import { Todoist } from './todoist.js';
-import { weekKey, weekRange, scoreWeek, manualWeek } from './week.js';
+import { weekKey, weekRange, scoreWeek } from './week.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readJson = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8'));
@@ -22,7 +23,7 @@ function saveState(s) {
 }
 
 async function context(state) {
-  if (!todoist.enabled) return { tasks: [], source: 'manual' };
+  if (!todoist.enabled) return { tasks: [], source: 'fara-token' };
   try {
     const since = new Date(Math.min(...Object.values(state.territoryStart).map((d) => +new Date(d)), +new Date(state.createdAt), Date.now() - 80 * 864e5));
     const tasks = await todoist.completed(new Date(Math.max(+since, Date.now() - 85 * 864e5)), new Date());
@@ -32,11 +33,34 @@ async function context(state) {
   }
 }
 
-async function currentWeek(ctx) {
-  const { start, end } = weekRange();
-  if (ctx.source !== 'todoist') return { key: weekKey(), source: ctx.source, error: ctx.error, ...manualWeek({}, cfg.score), start, end, manualNeeded: true };
+async function currentWeek(ctx, date = new Date()) {
+  const { start, end } = weekRange(date);
+  if (ctx.source !== 'todoist') return { key: weekKey(date), source: ctx.source, error: ctx.error, ...scoreWeek([], cfg.score), start, end, unavailable: true };
   const tasks = ctx.tasks.filter((t) => new Date(t.completedAt) >= start && new Date(t.completedAt) < end);
-  return { key: weekKey(), source: 'todoist', ...scoreWeek(tasks, cfg.score), start, end };
+  return { key: weekKey(date), source: 'todoist', ...scoreWeek(tasks, cfg.score), start, end };
+}
+
+
+// ---- inchidere automata: duminica dupa ora configurata (+ recuperare pentru saptamana trecuta) ----
+const rng = Math.random;
+export async function autoClose(now = new Date()) {
+  if (!cfg.autoClose.enabled || !todoist.enabled) return [];
+  const state = loadState(); const terrs = loadTerritories();
+  const ctx = await context(state);
+  if (ctx.source !== 'todoist') return [];
+  const closed = (k) => state.history.some((w) => w.key === k);
+  const prev = new Date(now); prev.setDate(prev.getDate() - 7);
+  const dates = [];
+  if (!closed(weekKey(prev)) && new Date(state.createdAt) < weekRange(prev).start) dates.push(prev);
+  if (now.getDay() === 0 && now.getHours() >= cfg.autoClose.hour && !closed(weekKey(now))) dates.push(now);
+  const done = [];
+  for (const d of dates) {
+    const week = await currentWeek(ctx, d);
+    closeWeek(state, terrs, week, ctx, cfg, rng, now);
+    done.push(week.key);
+  }
+  if (done.length) { state.lastAutoClose = { at: now.toISOString(), weeks: done }; saveState(state); }
+  return done;
 }
 
 async function snapshot() {
@@ -58,7 +82,8 @@ async function snapshot() {
     rank: { ...rank, index: state.rank, factorNext: STEP_FACTORS[state.rank] ?? null },
     ranks: RANKS.map((r, i) => ({ name: r.name, index: i })),
     domains: DOMAINS.map((d) => ({ id: d, name: DOMAIN_NAMES[d], recognition: state.recognition[d] })),
-    newEvents: events
+    newEvents: events,
+    autoClose: { enabled: cfg.autoClose.enabled && todoist.enabled, hour: cfg.autoClose.hour }
   };
 }
 
@@ -68,43 +93,40 @@ const body = (req) => new Promise((res, rej) => {
   req.on('end', () => { try { res(b ? JSON.parse(b) : {}); } catch (e) { rej(e); } });
 });
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+
+// ---- parola (obligatorie cand serverul e expus in retea) ----
+const PASSWORD = process.env.APP_PASSWORD || '';
+const sessionToken = () => crypto.createHmac('sha256', PASSWORD).update('dinastia-session').digest('hex');
+const safeEq = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const cookieOf = (req, name) => (req.headers.cookie || '').split(/;\s*/).map((c) => c.split('=')).find(([k]) => k === name)?.[1] || '';
+const authed = (req) => !PASSWORD || safeEq(cookieOf(req, 'dsess'), sessionToken());
+const PUBLIC = new Set(['/login.html', '/manifest.webmanifest', '/sw.js', '/icon.svg', '/icon-192.png', '/icon-512.png']);
+
+async function login(req, res) {
+  const b = await body(req);
+  await new Promise((r) => setTimeout(r, 800)); // incetineste ghicitul
+  if (!safeEq(String(b.password || ''), PASSWORD)) return send(res, 401, { error: 'Parolă greșită' });
+  const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `dsess=${sessionToken()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure}` });
+  res.end('{"ok":true}');
+}
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 async function api(req, res, url) {
-  const m = req.method;
+  const m = req.method; // doar citire: nicio actiune de scriere
   if (m === 'GET' && url.pathname === '/api/state') return send(res, 200, await snapshot());
 
-  let mt;
-  if (m === 'POST' && (mt = url.pathname.match(/^\/api\/territory\/([\w-]+)\/(conquer|progress|link)$/))) {
-    const [, id, action] = mt; const b = await body(req);
-    const state = loadState(); const terrs = loadTerritories();
-    if (!terrs.some((t) => t.id === id)) return send(res, 404, { error: 'Teritoriu necunoscut' });
-    if (action === 'conquer') manualConquer(state, terrs, id);
-    if (action === 'progress') state.manualCount[id] = Math.max(0, (state.manualCount[id] || 0) + (Number(b.delta) || 1));
-    if (action === 'link') state.links[id] = String(b.taskId || '').trim() || undefined;
-    saveState(state);
-    return send(res, 200, await snapshot());
-  }
-
-  if (m === 'POST' && url.pathname === '/api/week/close') {
-    const b = await body(req);
-    const state = loadState(); const terrs = loadTerritories();
-    const ctx = await context(state);
-    let week = await currentWeek(ctx);
-    if (week.manualNeeded || b.ratios) week = { ...week, ...manualWeek(b.ratios, cfg.score) };
-    if (Number.isFinite(Number(b.score)) && b.score !== '' && b.score != null) week.score = Math.max(1, Math.min(10, Math.round(Number(b.score))));
-    closeWeek(state, terrs, week, ctx, cfg);
-    saveState(state);
-    return send(res, 200, await snapshot());
-  }
-
-  if (m === 'POST' && url.pathname === '/api/reset') { saveState(newState()); return send(res, 200, await snapshot()); }
   return send(res, 404, { error: 'Not found' });
 }
 
 export const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   try {
+    if (req.method === 'POST' && url.pathname === '/login' && PASSWORD) return await login(req, res);
+    if (!authed(req) && !PUBLIC.has(url.pathname)) {
+      if (url.pathname.startsWith('/api/')) return send(res, 401, { error: 'Neautentificat' });
+      res.writeHead(302, { Location: '/login.html' }); return res.end();
+    }
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     const file = path.join(ROOT, 'public', url.pathname === '/' ? 'index.html' : url.pathname);
     if (!file.startsWith(path.join(ROOT, 'public')) || !fs.existsSync(file)) { res.writeHead(404); return res.end('Not found'); }
@@ -117,6 +139,10 @@ export const server = http.createServer(async (req, res) => {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT) || cfg.port;
-  server.listen(port, process.env.HOST || '127.0.0.1', () =>
-    console.log(`Dinastia ta rulează pe http://localhost:${port} (Todoist: ${todoist.enabled ? 'activ' : 'fără token, mod manual'})`));
+  const host = process.env.HOST || '127.0.0.1';
+  if (!['127.0.0.1', 'localhost', '::1'].includes(host) && !PASSWORD) { console.error('Refuz să pornesc în rețea fără APP_PASSWORD.'); process.exit(1); }
+  autoClose().catch((e) => console.error('autoClose:', e.message));
+  setInterval(() => autoClose().catch((e) => console.error('autoClose:', e.message)), cfg.autoClose.checkMinutes * 60000).unref?.();
+  server.listen(port, host, () =>
+    console.log(`Dinastia ta rulează pe http://localhost:${port} (Todoist: ${todoist.enabled ? 'activ' : 'FĂRĂ TOKEN: setează TODOIST_TOKEN'})`));
 }

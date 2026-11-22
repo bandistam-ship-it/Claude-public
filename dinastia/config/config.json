@@ -15,6 +15,7 @@
     "sectionToDomain": { "library": "filosofie", "bonfire": "filosofie", "barracks": "sport", "keep": "casa" },
     "labelToDomain": { "body": "sport", "upkeep": "casa", "mind": "filosofie" }
   },
+  "autoClose": { "enabled": true, "hour": 21, "checkMinutes": 10 },
   "loss": { "scoreAtOrBelow": 4, "clearGap": 0.15 },
   "death": { "weeksAtOrBelow": 2 }
 }

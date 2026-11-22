@@ -7,6 +7,7 @@ let data = null, selected = 'obor';
 
 async function call(path, body) {
   const res = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (res.status === 401) { location.href = '/login.html'; return null; }
   const j = await res.json();
   if (!res.ok) { alert(j.error || 'Eroare'); return null; }
   return j;
@@ -61,47 +62,28 @@ function renderTerritory() {
   const t = data.territories.find((x) => x.id === selected) || data.territories[0];
   const pct = t.goal ? Math.round((t.progress / t.goal) * 100) : 0;
   const unit = { streak: 'săptămâni', taskCount: 'task-uri', weeklyDomain: 'săptămâni' }[t.type];
-  let h = `<h2>${esc(t.name)} <span class="sub">· ${t.domain ? DOMAIN_NAME[t.domain] : 'Țara întreagă'} · ${STATUS[t.status]}${t.proposed ? ' · țintă propusă de mine' : ''}</span></h2>`;
+  let h = `<h2>${esc(t.name)} <span class="sub">· ${t.domain ? DOMAIN_NAME[t.domain] : 'Țara întreagă'} · ${STATUS[t.status]}</span></h2>`;
   h += `<p>${esc(t.target)}</p>`;
-  if (t.status === 'lost') h += `<p class="warn">Luat de ${esc(t.rival)}. Îl poți recuceri cu aceeași țintă.</p>`;
+  if (t.status === 'lost') h += `<p class="warn">Luat de ${esc(t.rival)}. Îl recucerești cu aceeași țintă.</p>`;
   if (unit) h += `<div class="sub">${t.progress} / ${t.goal} ${unit}</div><div class="bar"><i style="width:${pct}%"></i></div>`;
-  if (t.status === 'available' || t.status === 'lost') {
-    h += `<button data-act="conquer">Marchează cucerit</button>`;
-    if (t.type === 'taskCount') h += `<button class="ghost" data-act="plus">+1 manual</button>`;
-    h += `<div style="margin-top:8px"><label>Task Todoist legat (ID): <input type="text" id="link" value="${esc(t.linked || '')}"> <button class="ghost" data-act="link">Leagă</button></label></div>`;
-  }
+  if (t.type === 'tag' && t.status !== 'conquered' && t.status !== 'locked') h += `<p class="sub">Se cucerește când bifezi în Todoist un task cu <b>[${esc(t.name)}]</b> în titlu.</p>`;
   if (t.status === 'locked') h += `<p class="sub">Se deschide când ajungi la un rang mai mare.</p>`;
   $('territory').innerHTML = h;
-  const on = (a, fn) => $('territory').querySelector(`[data-act="${a}"]`)?.addEventListener('click', fn);
-  on('conquer', () => load(`/api/territory/${t.id}/conquer`, {}));
-  on('plus', () => load(`/api/territory/${t.id}/progress`, { delta: 1 }));
-  on('link', () => load(`/api/territory/${t.id}/link`, { taskId: $('link').value }));
 }
 
 function renderWeek() {
   const w = data.week;
   let h = `<h2>Săptămâna ${esc(w.key)}</h2>`;
-  if (w.error) h += `<p class="warn">Todoist: ${esc(w.error)}</p>`;
-  if (w.manualNeeded) {
-    h += `<p class="sub">${data.source === 'manual' ? 'Fără TODOIST_TOKEN: introdu manual cât ai făcut pe domeniu (0–100% din ținta săptămânii).' : 'Todoist indisponibil: introdu manual.'}</p>`;
-    for (const d of data.domains) h += `<label>${d.name} <input type="number" min="0" max="150" value="0" data-d="${d.id}"> %</label>`;
-    h += `<label style="margin-top:6px">Scor raport de duminică (opțional, 1–10): <input type="number" min="1" max="10" id="score"></label>`;
-  } else {
+  if (data.source === 'fara-token') h += '<p class="warn">Todoist nu e conectat: serverul pornește fără TODOIST_TOKEN.</p>';
+  else if (w.error) h += `<p class="warn">Todoist: ${esc(w.error)}</p>`;
+  else {
     h += `<div class="bar"><i style="width:${w.score * 10}%"></i></div><div>Scor până acum: <b>${w.score}/10</b></div>`;
     for (const d of data.domains) { const x = w.domains[d.id]; h += `<div class="sub">${d.name}: ${x.count} task-uri · ${Math.round(x.ratio * 100)}%</div>`; }
-    h += `<label style="margin-top:6px">Suprascrie cu scorul raportului (opțional): <input type="number" min="1" max="10" id="score"></label>`;
   }
-  const closed = data.state.history.some((x) => x.key === w.key);
-  h += `<button id="close" ${closed ? 'disabled' : ''}>${closed ? 'Săptămâna e închisă' : 'Închide săptămâna'}</button>`;
+  if (data.autoClose.enabled) h += `<p class="sub">Săptămâna se închide singură duminică la ${data.autoClose.hour}:00.</p>`;
   const hist = data.state.history.slice(-8).map((x) => x.score).join(' · ');
   if (hist) h += `<div class="sub" style="margin-top:8px">Ultimele scoruri: ${hist}</div>`;
   $('week').innerHTML = h;
-  $('close')?.addEventListener('click', () => {
-    const ratios = {};
-    $('week').querySelectorAll('[data-d]').forEach((el) => { ratios[el.dataset.d] = Number(el.value) / 100; });
-    const score = $('score').value;
-    load('/api/week/close', { ratios: w.manualNeeded ? ratios : undefined, score: score === '' ? undefined : score });
-  });
 }
 
 function renderRecognition() {
@@ -120,4 +102,6 @@ function renderJournal() {
 }
 
 function render() { renderHeader(); renderMap(); renderTerritory(); renderWeek(); renderRecognition(); renderJournal(); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 load();
+setInterval(() => { if (!document.hidden) load(); }, 120000);

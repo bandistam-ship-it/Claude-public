@@ -65,12 +65,12 @@ export class Todoist {
       .filter((t) => String(t.project_id) === String(meta.projectId))
       .map((t) => ({
         id: String(t.task_id || t.id),
-        content: t.content,
+        content: t.content || '',
+        labels: (t.labels || []).map((l) => String(l).toLowerCase()),
         completedAt: t.completed_at,
         domain: classify(t, meta.sections[t.section_id], this.cfg.domains),
         points: taskPoints(t, this.cfg.score)
-      }))
-      .filter((t) => t.domain);
+      }));
     this.cache.set(key, { at: Date.now(), tasks });
     return tasks;
   }

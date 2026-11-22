@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { newState, closeWeek, checkConquests, manualConquer } from '../server/game.js';
+import { newState, closeWeek, checkConquests } from '../server/game.js';
 import { scoreWeek, weekKey } from '../server/week.js';
 import { classify } from '../server/todoist.js';
 
@@ -12,6 +12,8 @@ const at = (n) => new Date(Date.UTC(2026, 0, 1 + 7 * n));
 const wk = (i, score, r = 0.8) => ({ key: `w${i}`, score, domains: doms(r) });
 const ctx = { tasks: [] };
 const rng = () => 0.1;
+// simuleaza bifarea in Todoist a unui task cu [id] in titlu
+const tag = (s, id, when) => checkConquests(s, terrs, { tasks: [{ id: 't' + id, content: `Test [${id}]`, labels: [], completedAt: when.toISOString() }] }, when);
 
 test('Obor se cucerește după 3 săptămâni la rând cu scor >= 6', () => {
   const s = newState(at(0));
@@ -27,16 +29,16 @@ test('Obor se cucerește după 3 săptămâni la rând cu scor >= 6', () => {
 
 test('toate cartierele => Baron de București', () => {
   const s = newState(at(0));
-  manualConquer(s, terrs, 'obor', at(1));
-  for (const t of terrs.filter((x) => x.tier === 2)) manualConquer(s, terrs, t.id, at(2));
+  tag(s, 'obor', at(1));
+  for (const t of terrs.filter((x) => x.tier === 2)) tag(s, t.id, at(2));
   assert.equal(s.rank, 2);
 });
 
 test('scor <= 4 pierde teritoriul domeniului cel mai slab', () => {
   const s = newState(at(0));
-  manualConquer(s, terrs, 'obor', at(1));
-  manualConquer(s, terrs, 'colentina', at(2));
-  manualConquer(s, terrs, 'floreasca', at(3));
+  tag(s, 'obor', at(1));
+  tag(s, 'colentina', at(2));
+  tag(s, 'floreasca', at(3));
   const d = doms(0.8); d.drept.ratio = 0.1;
   const ev = closeWeek(s, terrs, { key: 'x', score: 3, domains: d }, ctx, cfg, rng, at(4));
   assert.ok(s.lost.colentina, 'Colentina (drept) pierdută');
@@ -46,8 +48,8 @@ test('scor <= 4 pierde teritoriul domeniului cel mai slab', () => {
 
 test('baron fără niciun cartier devine țăran liber; moartea cere 2 săptămâni slabe', () => {
   const s = newState(at(0));
-  manualConquer(s, terrs, 'obor', at(1));
-  manualConquer(s, terrs, 'colentina', at(2));
+  tag(s, 'obor', at(1));
+  tag(s, 'colentina', at(2));
   closeWeek(s, terrs, wk(1, 2, 0.1), ctx, cfg, rng, at(3)); // pierde Colentina => coboară
   assert.equal(s.rank, 0);
   assert.equal(s.lowStreak, 1);
@@ -60,7 +62,7 @@ test('baron fără niciun cartier devine țăran liber; moartea cere 2 săptăm�
 });
 
 test('taskCount: Colentina după 20 de task-uri Drept', () => {
-  const s = newState(at(0)); manualConquer(s, terrs, 'obor', at(1));
+  const s = newState(at(0)); tag(s, 'obor', at(1));
   const tasks = Array.from({ length: 20 }, (_, i) => ({ id: `t${i}`, domain: 'drept', completedAt: at(2).toISOString() }));
   checkConquests(s, terrs, { tasks }, at(3));
   assert.ok(s.conquered.colentina);
@@ -81,4 +83,17 @@ test('scor din task-uri și clasificare Todoist', () => {
   assert.equal(classify({ labels: ['Upkeep'] }, '🏰 Keep', cfg.domains), 'casa');
   assert.equal(classify({ labels: [] }, '🍺 Tavern', cfg.domains), null);
   assert.match(weekKey(new Date(2026, 10, 22)), /^2026-W47$/);
+});
+
+test('variantele de evenimente nu se repetă la rând', () => {
+  const s = newState(at(0));
+  const seen = [];
+  let n = 0;
+  const r = () => ((n++ * 0.37) % 1);
+  for (let i = 1; i <= 6; i++) {
+    const ev = closeWeek(s, terrs, { key: `v${i}`, score: 5, domains: { ...doms(0.9), sport: { count: 0, points: 0, ratio: 0 } } }, ctx, cfg, r, at(i));
+    seen.push(ev.find((e) => e.kind === 'bad')?.text);
+  }
+  for (let i = 1; i < seen.length; i++) assert.notEqual(seen[i], seen[i - 1]);
+  assert.ok(new Set(seen).size > 1);
 });
