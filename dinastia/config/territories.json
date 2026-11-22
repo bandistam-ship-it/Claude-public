@@ -1,0 +1,30 @@
+{
+  "_nota": "Lista ta editabila. tier 1=Obor, 2=cartiere, 3=orase Ilfov, 4=judete (schita). type: manual | streak | taskCount | weeklyDomain. 'proposed' = propus de mine, ajusteaza liber.",
+  "territories": [
+    { "id": "obor", "name": "Obor", "tier": 1, "domain": null, "target": "Trei săptămâni la rând cu scor de cel puțin 6 în raportul de duminică", "type": "streak", "weeks": 3, "minScore": 6 },
+
+    { "id": "colentina", "name": "Colentina", "tier": 2, "domain": "drept", "target": "20 de sesiuni de studiu pentru Barou bifate", "type": "taskCount", "count": 20 },
+    { "id": "dorobanti", "name": "Dorobanți", "tier": 2, "domain": "drept", "target": "O sesiune de examene la Drept fără restanță", "type": "manual" },
+    { "id": "drumul-taberei", "name": "Drumul Taberei", "tier": 2, "domain": "drept", "target": "O săptămână cu 30 de grile rezolvate", "type": "manual", "proposed": true },
+    { "id": "cotroceni", "name": "Cotroceni", "tier": 2, "domain": "filosofie", "target": "Un examen sau seminar de Filosofie promovat", "type": "manual" },
+    { "id": "cismigiu", "name": "Cișmigiu", "tier": 2, "domain": "filosofie", "target": "O lectură terminată pe lună, trei luni la rând", "type": "manual" },
+    { "id": "militari", "name": "Militari", "tier": 2, "domain": "filosofie", "target": "O lună de cursuri de Filosofie fără absență", "type": "manual", "proposed": true },
+    { "id": "floreasca", "name": "Floreasca", "tier": 2, "domain": "sport", "target": "Opt săptămâni cu cel puțin trei antrenamente", "type": "weeklyDomain", "minTasks": 3, "weeks": 8 },
+    { "id": "centrul-vechi", "name": "Centrul Vechi", "tier": 2, "domain": "sport", "target": "Primul muscle-up strict din arborele de calistenie", "type": "manual" },
+    { "id": "pantelimon", "name": "Pantelimon", "tier": 2, "domain": "sport", "target": "Drumul Obor–centru cu skate-ul, fără să cobori", "type": "manual" },
+    { "id": "berceni", "name": "Berceni", "tier": 2, "domain": "casa", "target": "O lună cu toate task-urile de casă în termen", "type": "manual" },
+    { "id": "giulesti", "name": "Giulești", "tier": 2, "domain": "casa", "target": "Patru săptămâni cu cel puțin 3 treburi de casă bifate", "type": "weeklyDomain", "minTasks": 3, "weeks": 4, "proposed": true },
+
+    { "id": "buftea", "name": "Buftea", "tier": 3, "domain": "drept", "target": "O simulare de Barou cu rezultat bun", "type": "manual" },
+    { "id": "chitila", "name": "Chitila", "tier": 3, "domain": "drept", "target": "O lună cu cel puțin 12 sesiuni de studiu Barou", "type": "taskCount", "count": 12, "proposed": true },
+    { "id": "magurele", "name": "Măgurele", "tier": 3, "domain": "filosofie", "target": "Un eseu sau o lucrare terminată și predată", "type": "manual" },
+    { "id": "otopeni", "name": "Otopeni", "tier": 3, "domain": "filosofie", "target": "Două cărți terminate într-o lună", "type": "manual", "proposed": true },
+    { "id": "voluntari", "name": "Voluntari", "tier": 3, "domain": "sport", "target": "Un nou skill din arbore în patru săptămâni", "type": "manual" },
+    { "id": "bragadiru", "name": "Bragadiru", "tier": 3, "domain": "casa", "target": "O lună fără nicio restanță la treburile casei", "type": "manual", "proposed": true },
+
+    { "id": "prahova", "name": "Prahova", "tier": 4, "domain": "drept", "target": "De scris când ajungi aici", "type": "manual", "sketch": true },
+    { "id": "dambovita", "name": "Dâmbovița", "tier": 4, "domain": "filosofie", "target": "De scris când ajungi aici", "type": "manual", "sketch": true },
+    { "id": "arges", "name": "Argeș", "tier": 4, "domain": "sport", "target": "De scris când ajungi aici", "type": "manual", "sketch": true },
+    { "id": "giurgiu", "name": "Giurgiu", "tier": 4, "domain": "casa", "target": "De scris când ajungi aici", "type": "manual", "sketch": true }
+  ]
+}
