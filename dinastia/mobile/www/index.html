@@ -1,0 +1,690 @@
+<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1b1610"><title>Dinastia ta</title>
+
+<style>
+/* Layout: harta in inele (treapta = inel) langa panouri; pe telefon se stivuiesc. Un singur look: pergament intunecat. */
+:root{--bg:#1b1610;--panel:#2a2218;--ink:#ecdfc4;--muted:#a8997a;--line:#4a3d2a;--gold:#d4a843;--bar:#14100b;
+--drept:#8c3b3b;--filosofie:#4b6a9b;--sport:#5d8a4a;--casa:#a8793a;--lost:#7a1f1f;--locked:#4a4234;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,'Times New Roman',serif;
+padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:8px 16px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:1.6rem;letter-spacing:.04em;color:var(--gold)}
+h2{margin:0 0 8px;font-size:1.05rem;color:var(--gold)}
+.sub{color:var(--muted);font-size:.9rem}
+.rank{text-align:right}.rank b{display:block;font-size:1.2rem}
+main{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;padding-top:16px;max-width:1300px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:minmax(0,1fr)}}
+.map-wrap{background:radial-gradient(circle,#3a2f1e,#241c12);border:1px solid var(--line);border-radius:10px;padding:8px}
+#map{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted);padding:6px 8px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.bar{height:8px;background:var(--bar);border-radius:4px;overflow:hidden;margin:4px 0 10px}
+.bar>i{display:block;height:100%;background:var(--gold)}
+button{font:inherit;background:var(--gold);color:#1b1610;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ev{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:8px 0;font-size:.92rem}
+.ev.good{border-color:var(--sport)}.ev.bad,.ev.loss{border-color:var(--lost)}.ev.conquest,.ev.rank{border-color:var(--gold)}.ev.death{border-color:#000;background:#150f0a}
+.ev small{color:var(--muted);display:block}
+.warn{color:#e9a96a;font-size:.92rem}
+.sector{cursor:pointer;stroke:#14100b;stroke-width:2}
+.sector:hover{filter:brightness(1.25)}.sector.sel{stroke:var(--gold);stroke-width:4}
+.lbl{fill:#fff;font-size:11px;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#000a;stroke-width:3px}
+.lbl.small{font-size:9px}
+#status{padding:24px 0;text-align:center}
+</style>
+</head><body><header>
+  <div><h1>Dinastia ta</h1><div id="who" class="sub"></div></div>
+  <div id="rank" class="rank"></div>
+</header>
+<div id="status" class="sub">Se citește Todoist…</div>
+<main id="app" hidden>
+  <section class="map-wrap">
+    <svg id="map" viewBox="-380 -380 760 760" role="img" aria-label="Harta teritoriilor"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--drept)"></i>Drept</span><span><i class="dot" style="background:var(--filosofie)"></i>Filosofie</span>
+      <span><i class="dot" style="background:var(--sport)"></i>Sport</span><span><i class="dot" style="background:var(--casa)"></i>Casă</span>
+      <span><i class="dot" style="background:var(--lost)"></i>Pierdut</span><span><i class="dot" style="background:var(--locked)"></i>Încă închis</span>
+    </div>
+  </section>
+  <aside>
+    <section class="card" id="territory"></section>
+    <section class="card" id="week"></section>
+    <section class="card" id="recognition"></section>
+    <section class="card" id="journal"></section>
+  </aside>
+</main>
+<script>
+// Date statice: ranguri, domenii, evenimente (toate in romana).
+const DOMAINS = ['drept', 'filosofie', 'sport', 'casa'];
+const DOMAIN_NAMES = { drept: 'Drept și Barou', filosofie: 'Filosofie și lectură', sport: 'Sport', casa: 'Casă' };
+
+const RANKS = [
+  { id: 'taran', name: 'Țăran liber', factor: 10, group: 'taran', next: 'Cucerești Obor' },
+  { id: 'baron_obor', name: 'Baron de Obor', factor: 8, group: 'baron_obor', next: 'Cucerești tot Bucureștiul' },
+  { id: 'baron_buc', name: 'Baron de București', factor: 11, group: 'baron_buc', next: 'Cucerești orașele din Ilfov' },
+  { id: 'conte', name: 'Conte de Ilfov', factor: 15, group: 'conte', next: 'Cucerești județele din jur' },
+  { id: 'vornic', name: 'Mare Vornic', factor: 20, group: 'domn', next: 'Cucerești toată Țara Românească' },
+  { id: 'domn_tr', name: 'Domn al Țării Românești', factor: 27, group: 'domn', next: 'Cucerești Moldova și Transilvania' },
+  { id: 'domn_pr', name: 'Domn al Principatelor', factor: 36, group: 'domn', next: 'Cucerești țări vecine' },
+  { id: 'rege', name: 'Rege', factor: 48, group: 'domn', next: 'Cucerești restul continentului' },
+  { id: 'imparat', name: 'Împărat', factor: null, group: 'domn', next: 'Menții imperiul' }
+];
+// Dificultatea (factorul) pe pas, relativ la Obor, asa cum e in document.
+const STEP_FACTORS = [10, 8, 11, 15, 20, 27, 36, 48];
+
+const SOURCES = {
+  taran: {
+    drept: 'Logofătul a trimis după altcineva să scrie jalba. Pentru el nu ești încă om de încredere.',
+    filosofie: 'Preotul Valerie din cartier n-a vrut să te învețe să citești, găsindu-te sărac cu duhul.',
+    sport: 'Hangiul a pus alt băiat la căratul butoaielor. Brațele tale n-au făcut față.',
+    casa: 'Acoperișul colibei picură, iar vecinii au observat.'
+  },
+  baron_obor: {
+    drept: 'La judecata târgului un negustor a pierdut o pricină pe care ai fi putut-o câștiga. Se întreabă la ce îți trebuie baronia.',
+    filosofie: 'Dascălul grec nu mai vine. Spune că nu te-a prins la lecție de trei săptămâni.',
+    sport: 'Garda baroniei a făcut instrucție fără stăpân. Ostașii spun că baronul e de masă, nu de arme.',
+    casa: 'Hambarele din Obor n-au fost numărate, iar un negustor a luat mai mult decât se cuvenea.'
+  },
+  baron_buc: {
+    drept: 'Un conac din Colentina a trecut la vecini din cauza unui act necitit la timp.',
+    filosofie: 'Profesorul de la Academia Domnească spune că poate găsi alt protector, mai citit.',
+    sport: 'Garda nu se mai ține după un comandant care n-a ieșit din conac de o lună.',
+    casa: 'Intendentul spune că vistieria curții e goală. Nimeni nu înțelege de ce.'
+  },
+  conte: {
+    drept: 'Vornicii din Buftea au trimis un raport pe care nu l-ai citit. Doi arendași certați au tras din el concluzii opuse.',
+    filosofie: 'Cantemir vodă a întrerupt corespondența cu tine. Peste ținuturile tale aproape nimeni nu știe să citească.',
+    sport: 'Cavaleria județului a ieșit la paradă cu un comandant care abia se ținea în șa.',
+    casa: 'Dările din Ilfov n-au fost strânse la timp, iar vistiernicul îți cere socoteală.'
+  },
+  domn: {
+    drept: 'Divanul a judecat o pricină fără tine. Hotărârea o aplică cel mai tare, nu cel mai drept.',
+    filosofie: 'Epitropii bisericii spun că ținutul tău n-a mai dat nici un cărturar de un an.',
+    sport: 'Oștirea e tare pe hârtie, dar domnul nu s-a mai arătat la arme.',
+    casa: 'Visteria e nesigură, iar boierii cer să se numească alt vistiernic.'
+  }
+};
+
+const WINS = {
+  taran: {
+    drept: 'Logofătul a cerut ca jalba ta să fie citită în fața satului. Cartierul îți spune acum „cel cu hârtia”.',
+    filosofie: 'Preotul Valerie te-a pus să le arăți slovele ucenicilor. Lumea s-a mirat că știi carte.',
+    sport: 'Hangiul te-a pus cel dintâi la căratul butoaielor, iar brațele au ținut până seara.',
+    casa: 'Acoperișul colibei e dres, iar vecinii vin să te întrebe cum ai făcut.'
+  },
+  baron_obor: {
+    drept: 'La judecata târgului ai câștigat o pricină grea. Negustorii vorbesc cu respect despre baronie.',
+    filosofie: 'Dascălul grec a rămas peste ceas la lecție. Spune că rar a întâlnit un baron cu mintea atât de ageră.',
+    sport: 'Garda a ieșit prima la instrucție, în pasul baronului. Hatmanul a notat numele tău.',
+    casa: 'Hambarele din Obor au fost numărate până la ultimul bob. Negustorii se feresc de socoteala ta.'
+  },
+  baron_buc: {
+    drept: 'Un act citit la timp a salvat un conac din Colentina. Boierii spun că ai ochi de logofăt.',
+    filosofie: 'Profesorul de la Academia Domnească te-a poftit la o dispută publică. Se șoptește că ai viitor de cărturar.',
+    sport: 'Garda a defilat în pas de paradă, iar comandantul a lăudat disciplina baronului.',
+    casa: 'Vistieria curții a închis anul pe plus pentru prima dată. Intendentul cere să rămână la fel.'
+  },
+  conte: {
+    drept: 'Vornicii din Buftea au primit răspuns la timp. Arendașii certați s-au împăcat.',
+    filosofie: 'Dascălii din Ilfov au cerut să deschidă o școală în numele tău.',
+    sport: 'Cavaleria județului a defilat în fața ta, iar calul comandantului a primit numele tău.',
+    casa: 'Dările din Ilfov au fost strânse la timp, iar vistiernicul îți mulțumește în scris.'
+  },
+  domn: {
+    drept: 'Divanul a așteptat părerea ta înainte să hotărască, iar pricina s-a încheiat după dreptate.',
+    filosofie: 'Epitropii bisericii au cerut un cărturar din ținutul tău pentru școala domnească.',
+    sport: 'Oștirea e tare și pe teren, nu doar pe hârtie, iar domnul s-a arătat la arme alături de ea.',
+    casa: 'Visteria e plină, iar boierii nu mai cer alt vistiernic.'
+  }
+};
+
+const HABIT = {
+  drept: 'cartea de drept în mână',
+  filosofie: 'cartea de filosofie în mână',
+  sport: 'brațele și picioarele la antrenament',
+  casa: 'treburile casei în termen'
+};
+
+const RIVALS = ['Spătarul Costache', 'Postelnicul Iordache', 'Căminarul Manolache', 'Paharnicul Dinu', 'Clucerul Radu', 'Armașul Stan'];
+
+const HEIR_NAMES = ['Matei', 'Ilie', 'Vlad', 'Stelian', 'Neagu', 'Barbu', 'Gheorghe', 'Teodor', 'Constantin', 'Șerban'];
+
+const CONQUEST_FLAVOR = {
+  1: 'Târgoveții își scot căciula când treci.',
+  2: 'Cartierul își deschide porțile, iar vecinii întreabă ce mai poruncești.',
+  3: 'Vornicii orașului vin să-ți sărute mâna și să-ți predea cheile.',
+  4: 'Județul se închină, iar dările sunt ale tale.'
+};
+
+// Variante extra (3 pe eveniment). Forma: [grup][domeniu] = [v1, v2, v3]
+const FAIL_VARIANTS = {
+  taran: {
+    drept: ['Scribul de la han a scris jalba altuia. Se zice că tu n-ai fi știut nici cum s-o începi.', 'În fața logofătului ai stat cu mâna goală. Cartierul a văzut și a ținut minte.', 'Un vecin a pierdut o pricină mică pentru că nu ai știut să-l îndrumi. Nu ți-a mai bătut la poartă.'],
+    filosofie: ['Preotul Valerie i-a învățat slovele pe copiii vecinilor, nu pe tine. Spune că tu ai timp altă dată.', 'Slovele pe care le știai anul trecut ți-au scăpat. Cartea de la biserică stă neatinsă.', 'La slujbă n-ai putut citi nici rândul tău. Oamenii s-au uitat în pământ.'],
+    sport: ['Căratul butoaielor a rămas pe seama altora. Hangiul spune că ești bun la vorbă, nu la muncă.', 'La întrecerea din târg ai ieșit ultimul. Copiii au râs, iar tu ai tăcut.', 'Mâinile ți-au rămas moi, iar plugarii și-au dat seama de la prima strângere.'],
+    casa: ['Gardul a căzut peste noapte, iar vecinii spun că vitele lor au ajuns în ograda ta.', 'Lemnele pentru iarnă nu sunt tăiate, iar fumul de la vecini ți-o amintește.', 'Coliba e plină de praf și frunze. Cine trece pe drum se uită și oftează.']
+  },
+  baron_obor: {
+    drept: ['Un negustor a venit după sfat și a plecat cu mâinile goale. Baronia nu mai e locul unde se caută dreptate.', 'Zapisul unui arendaș a rămas necitit, iar el a pierdut o vie. Te-a învinuit în public.', 'Judele târgului a judecat fără tine și a hotărât greșit. Se spune că baronul nu mai ține la lege.'],
+    filosofie: ['Dascălul grec a dat lecția altui elev. Zice că minții tale i-a fost lene.', 'Cărțile din odaia baronului au prins praf. Un oaspete a băgat de seamă.', 'Preotul Valerie a întrebat ce mai citești. Răspunsul a întârziat prea mult.'],
+    sport: ['Ostașii au tras la țintă fără baron. Au zis că nu mai are mâna sigură.', 'Calul baronului a stat nealergat o lună, iar grăjdarul a ridicat din umeri.', 'La parada din Obor baronul a stat în a doua linie, iar oamenii au băgat de seamă.'],
+    casa: ['Acoperișul hambarului a luat apă, iar grâul a mucegăit. Negustorii s-au retras de la tocmeală.', 'Curtea baronului e pe jumătate măturată. Un oaspete a râs în barbă.', 'Slugile nu mai primesc poruncă la timp, iar casa se vede.']
+  },
+  baron_buc: {
+    drept: ['Un proces de la Dealul Spirii s-a pierdut pentru o dovadă neadusă la timp.', 'Logofătul Divanului a trimis o cerere la care n-ai răspuns. Se zice că ai alte treburi.', 'Un arendaș din cartier a pierdut o moșie, iar vina arată spre cancelaria ta.'],
+    filosofie: ['La Academia Domnească scaunul tău a rămas gol. Profesorii au observat.', 'O dispută de la curte s-a purtat fără tine. Cel care a câștigat-o nu te-a pomenit.', 'Un dascăl tânăr a cerut să-și așeze catedra în alt cartier.'],
+    sport: ['Garda n-a mai ieșit la instrucție de două săptămâni, iar comandantul se uită după alt stăpân.', 'Un duel din târg l-a câștigat un oștean pe care odinioară nu l-ai fi lăsat.', 'Caii gărzii s-au îngrășat, iar ostașii s-au dezobișnuit de drum.'],
+    casa: ['Cămara conacului e aproape goală, iar slugile cer plata pe lunile trecute.', 'Un mic foc la grajduri a arătat că nimeni nu mai verifică focul.', 'Intendentul a pierdut socoteala sacilor. Se bănuiește că unul a plecat în noapte.']
+  },
+  conte: {
+    drept: ['O pricină de hotar între două sate a ajuns la Divan fără aviz de la tine.', 'Doi boieri din Ilfov s-au judecat fără un cuvânt de la conte, iar unul a rămas nemulțumit.', 'Arhiva județului s-a încurcat, iar un zapis important nu se mai găsește.'],
+    filosofie: ['O școală din Ilfov a rămas fără dascăl și nimeni n-a știut cui să ceară unul.', 'Scrisorile către cărturari au rămas fără răspuns. Aceștia au scris în altă parte.', 'Un tipograf din Buftea s-a plâns că nimeni din județ nu mai comandă cărți.'],
+    sport: ['La vânătoarea contelui au venit boieri să te vadă călare. Ai rămas acasă.', 'Cavaleria a rămas fără instrucție de lance, iar un căpitan a cerut transferul.', 'Caii din herghelia contelui nu mai sunt scoși la alergat.'],
+    casa: ['Hambarele județului nu sunt numărate, iar un arendaș a vândut grâul de două ori.', 'Vistiernicul a cerut socoteala banilor strânși, iar socoteala nu e gata.', 'Podul de lângă Otopeni s-a stricat, iar dările s-au amânat.']
+  },
+  domn: {
+    drept: ['Un proces mare a trecut prin Divan cu un singur martor, iar acela nu a fost al tău.', 'Hrisovul pe care îl așteptau boierii n-a fost iscălit la timp.', 'Judecata Divanului a mers spre cel mai puternic, iar tu ai aflat ultimul.'],
+    filosofie: ['Școala domnească din ținutul tău s-a închis pentru lipsă de dascăli.', 'Un cărturar a plecat din țară, scriind că aici nu mai citește nimeni.', 'Epitropii cer ca banii bisericii să meargă la altă școală.'],
+    sport: ['Oștirea a ieșit la parada de Sfântul Gheorghe fără steag, iar boierii au murmurat.', 'Domnul nu s-a arătat la vânătoarea domnească, iar curtea a tras concluzii.', 'Garda domnească se instruiește singură, iar ostașii nu mai știu cine le e stăpân.'],
+    casa: ['Boierii spun că visteria a fost scoasă la inventar și nu s-a găsit toată suma.', 'Dările din țară au întârziat, iar Poarta a cerut lămuriri.', 'Curtea domnească a rămas fără lumânări în plină iarnă. Se șoptește că visteria e goală.']
+  }
+};
+
+const WIN_VARIANTS = {
+  taran: {
+    drept: ['Un vecin a venit la tine cu zapisul, iar tu l-ai citit pe loc. Cartierul a prins de veste.', 'Logofătul te-a poftit să-i citești o hârtie. E prima dată când cineva din sat face asta.', 'Jalba ta a fost primită fără întârziere, iar vecinii te privesc altfel.'],
+    filosofie: ['Preotul Valerie ți-a dat să citești la slujbă. Satul a ascultat în tăcere.', 'Slovele îți ies acum curat, iar copiii cer să le arăți.', 'Preotul spune că ai început să citești ca un om învățat.'],
+    sport: ['La întrecerea din târg ai ajuns în primii trei. Hangiul a ridicat un pahar.', 'Plugarii spun că ai mâna tare, iar un vecin te-a chemat la arat.', 'Brațele tale au dus butoaiele fără oprire, iar hangiul te-a plătit în plus.'],
+    casa: ['Gardul e drept, iar vecinii ți-au lăudat ograda.', 'Lemnele sunt tăiate pentru toată iarna. Cine trece pe drum îți dă binețe.', 'Coliba e măturată, iar fumul iese drept din horn.']
+  },
+  baron_obor: {
+    drept: ['Un negustor a plecat mulțumit de la judecata ta, iar vestea s-a dus prin târg.', 'Zapisul unui arendaș l-ai citit la timp, iar el și-a păstrat via.', 'Judele târgului a ținut seama de părerea ta și a hotărât drept.'],
+    filosofie: ['Dascălul grec ți-a dat o carte din biblioteca lui. Rar face asta.', 'Cărțile din odaia baronului sunt frunzărite, iar un oaspete a băgat de seamă.', 'Preotul Valerie a întrebat ce citești, iar răspunsul a venit pe loc.'],
+    sport: ['Ostașii au tras la țintă cu baronul în față, iar cel mai bun a fost el.', 'Calul baronului a fost alergat zilnic, iar grăjdarul zâmbește.', 'La parada din Obor baronul a mers în primul rând.'],
+    casa: ['Acoperișul hambarului e nou, iar grâul stă la uscat.', 'Curtea baronului e măturată, iar un oaspete a rămas la masă.', 'Slugile primesc poruncile la timp, iar casa merge ca un ceas.']
+  },
+  baron_buc: {
+    drept: ['O pricină de la Dealul Spirii s-a câștigat cu o dovadă adusă la timp.', 'Logofătul Divanului a primit răspunsul tău în aceeași zi.', 'Un arendaș din cartier și-a păstrat moșia, iar vestea s-a dus prin București.'],
+    filosofie: ['La Academia Domnească scaunul tău nu e niciodată gol.', 'O dispută de la curte s-a purtat cu numele tău pe buze.', 'Un dascăl tânăr a cerut să-și așeze catedra în cartierul tău.'],
+    sport: ['Garda a ieșit zilnic la instrucție, iar comandantul e mulțumit.', 'Un duel din târg l-a câștigat un oștean al tău.', 'Caii gărzii sunt în formă, iar ostașii străbat drumul fără oboseală.'],
+    casa: ['Cămara conacului e plină, iar slugile sunt plătite la zi.', 'Un mic foc la grajduri a fost stins din primul moment, iar intendentul te-a lăudat.', 'Intendentul a numărat sacii, iar socoteala a ieșit la leu.']
+  },
+  conte: {
+    drept: ['O pricină de hotar între două sate s-a încheiat cu aviz de la tine.', 'Doi boieri din Ilfov s-au judecat în fața ta, iar amândoi au plecat împăcați.', 'Arhiva județului e în ordine, iar zapisele se găsesc într-un ceas.'],
+    filosofie: ['O școală din Ilfov a primit un dascăl nou în numele tău.', 'Scrisorile către cărturari au primit răspuns, iar unul a venit să te vadă.', 'Un tipograf din Buftea a început să tipărească cărți pentru județ.'],
+    sport: ['La vânătoarea contelui, boierii te-au văzut călare și au tăcut cu respect.', 'Cavaleria a exersat lancea, iar un căpitan a cerut să rămână.', 'Caii din herghelia contelui sunt scoși zilnic la alergat.'],
+    casa: ['Hambarele județului sunt numărate, iar niciun arendaș nu mai vinde dublu.', 'Socoteala vistiernicului e gata înainte de termen.', 'Podul de lângă Otopeni a fost dres, iar dările au intrat la timp.']
+  },
+  domn: {
+    drept: ['Un proces mare a trecut prin Divan cu martorul tău în față.', 'Hrisovul boierilor a fost iscălit în ziua cuvenită.', 'Judecata Divanului a pornit de la un cuvânt de-al tău.'],
+    filosofie: ['Școala domnească din ținutul tău are dascăli noi și elevi în bănci.', 'Un cărturar a scris acasă că aici se citește din nou.', 'Epitropii au trimis bani pentru școala din ținutul tău.'],
+    sport: ['Oștirea a ieșit la parada de Sfântul Gheorghe cu steagul sus.', 'Domnul a venit la vânătoarea domnească, iar curtea a fost mulțumită.', 'Garda domnească se instruiește sub ochii tăi, iar ostașii știu cine le e stăpân.'],
+    casa: ['Visteria a trecut inventarul fără nicio lipsă.', 'Dările au sosit la termen, iar Poarta n-a cerut nimic.', 'Curtea domnească are lumânări din belșug în plină iarnă.']
+  }
+};
+
+// Calcule de saptamana si scor (functii pure, usor de testat).
+
+function mondayOf(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7; // luni = 0
+  d.setDate(d.getDate() - day);
+  return d;
+}
+
+function weekRange(date = new Date()) {
+  const start = mondayOf(date);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { start, end };
+}
+
+// Cheie ISO de saptamana, ex. 2026-W47
+function weekKey(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function taskPoints(task, scoreCfg) {
+  for (const l of task.labels || []) {
+    const p = scoreCfg.labelPoints[String(l).toLowerCase()];
+    if (p) return p;
+  }
+  return scoreCfg.priorityPoints[String(task.priority || 1)] ?? 1;
+}
+
+// tasks: [{domain, points}] -> { score, domains: {d:{points,count,ratio}} }
+function scoreWeek(tasks, scoreCfg) {
+  const domains = {};
+  for (const d of DOMAINS) domains[d] = { points: 0, count: 0, ratio: 0 };
+  for (const t of tasks) {
+    if (!domains[t.domain]) continue;
+    domains[t.domain].points += t.points;
+    domains[t.domain].count += 1;
+  }
+  let total = 0;
+  for (const d of DOMAINS) {
+    const share = scoreCfg.domainShare[d];
+    const ratio = domains[d].points / (scoreCfg.weeklyTargetPoints * share);
+    domains[d].ratio = Math.round(ratio * 100) / 100;
+    total += Math.min(1, ratio) * share;
+  }
+  return { score: Math.max(1, Math.min(10, Math.round(1 + 9 * total))), domains };
+}
+
+// Pentru introducere manuala: ratii 0..1 pe domeniu, fara Todoist.
+function manualWeek(ratios, scoreCfg) {
+  const domains = {};
+  let total = 0;
+  for (const d of DOMAINS) {
+    const r = Math.max(0, Number(ratios?.[d] ?? 0));
+    domains[d] = { points: 0, count: 0, ratio: Math.round(r * 100) / 100 };
+    total += Math.min(1, r) * scoreCfg.domainShare[d];
+  }
+  return { score: Math.max(1, Math.min(10, Math.round(1 + 9 * total))), domains };
+}
+
+// Logica jocului. Functii care muteaza un obiect `state` si intorc evenimentele noi.
+
+const START_RECOGNITION = 50;
+
+function newState(now = new Date()) {
+  return {
+    version: 1,
+    createdAt: now.toISOString(),
+    dynasty: { generation: 1, name: 'Dinu', trait: null, bornAt: now.toISOString() },
+    rank: 0,
+    conquered: {},        // id -> { at }
+    lost: {},             // id -> { rival, at }
+    territoryStart: {},   // id -> ISO, de cand conteaza progresul
+    recognition: Object.fromEntries(DOMAINS.map((d) => [d, START_RECOGNITION])),
+    history: [],          // saptamani inchise
+    lowStreak: 0,
+    journal: [],
+    ancestors: [],
+    lastEvents: {}        // anti-repetitie
+  };
+}
+
+const groupOf = (rank) => RANKS[Math.min(rank, RANKS.length - 1)].group;
+const byId = (terrs) => Object.fromEntries(terrs.map((t) => [t.id, t]));
+const log = (state, now, kind, text, extra = {}) => {
+  const ev = { at: now.toISOString(), kind, text, rank: RANKS[state.rank].name, generation: state.dynasty.generation, ...extra };
+  state.journal.push(ev);
+  return ev;
+};
+
+// Un task bifat conteaza pentru teritoriu daca are [Nume], #id in titlu sau eticheta cu id-ul.
+function hasTag(task, t) {
+  const c = (task.content || '').toLowerCase();
+  return c.includes(`[${t.name.toLowerCase()}]`) || c.includes(`[${t.id}]`) || c.includes(`#${t.id}`) || (task.labels || []).includes(t.id);
+}
+
+const isAvailable = (t, state) => t.tier <= state.rank + 1 && !t.sketchLocked;
+const startOf = (state, t) => state.territoryStart[t.id] || state.createdAt;
+
+// Progres catre tinta unui teritoriu. ctx.tasks = task-uri bifate (cu completedAt, domain, id)
+function evaluate(t, state, ctx = { tasks: [] }) {
+  const since = new Date(startOf(state, t));
+  const tagDone = ctx.tasks.some((x) => hasTag(x, t) && new Date(x.completedAt) >= since);
+  let progress = 0, goal = 1;
+  switch (t.type) {
+    case 'streak': {
+      goal = t.weeks;
+      const h = state.history.filter((w) => new Date(w.closedAt) >= since);
+      for (let i = h.length - 1; i >= 0 && h[i].score >= t.minScore; i--) progress++;
+      break;
+    }
+    case 'taskCount': {
+      goal = t.count;
+      progress = ctx.tasks.filter((x) => x.domain === t.domain && new Date(x.completedAt) >= since).length;
+      break;
+    }
+    case 'weeklyDomain': {
+      goal = t.weeks;
+      progress = state.history.filter((w) => new Date(w.closedAt) >= since && (w.domains?.[t.domain]?.count ?? 0) >= t.minTasks).length;
+      break;
+    }
+    default:
+      progress = 0; goal = 1;
+  }
+  const done = tagDone || (t.type !== 'tag' && progress >= goal);
+  return { progress: done ? goal : Math.min(progress, goal), goal, done };
+}
+
+function conquer(state, t, now, events) {
+  delete state.lost[t.id];
+  state.conquered[t.id] = { at: now.toISOString() };
+  const flavor = CONQUEST_FLAVOR[t.tier] || '';
+  events.push(log(state, now, 'conquest', `${t.name} e al tău. ${flavor}`.trim(), { territory: t.id }));
+}
+
+function promote(state, terrs, now, events) {
+  while (state.rank < RANKS.length - 1) {
+    const n = state.rank + 1;
+    const tier = terrs.filter((t) => t.tier === n && !t.sketch);
+    const sketch = terrs.filter((t) => t.tier === n);
+    if (!tier.length && sketch.length) break;       // doar schita: nu promovam pana nu e scrisa
+    if (!tier.length || !tier.every((t) => state.conquered[t.id])) break;
+    state.rank = n;
+    events.push(log(state, now, 'rank', `Ai devenit ${RANKS[n].name}.`));
+  }
+}
+
+// Verifica teritoriile disponibile; cucereste ce are tinta atinsa si promoveaza.
+function checkConquests(state, terrs, ctx, now = new Date()) {
+  const events = [];
+  const sorted = [...terrs].sort((a, b) => a.tier - b.tier);
+  for (const t of sorted) {
+    if (state.conquered[t.id] || !isAvailable(t, state)) continue;
+    if (t.sketch && !t.target) continue;
+    if (evaluate(t, state, ctx).done) { conquer(state, t, now, events); promote(state, terrs, now, events); }
+  }
+  return events;
+}
+
+const holdTiers = (rank) => (rank <= 1 ? [2] : [rank]);
+
+function demoteIfEmpty(state, terrs, now, events) {
+  while (state.rank >= 1) {
+    const held = terrs.filter((t) => holdTiers(state.rank).includes(t.tier) && state.conquered[t.id]);
+    if (held.length) return;
+    if (state.rank === 1 && state.conquered.obor) {
+      delete state.conquered.obor;
+      state.territoryStart.obor = now.toISOString();
+    }
+    state.rank -= 1;
+    events.push(log(state, now, 'rank', `Ai coborât la rangul ${RANKS[state.rank].name}.`));
+    if (state.rank === 0) return;
+  }
+}
+
+function pick(arr, rng) { return arr[Math.floor(rng() * arr.length) % arr.length]; }
+
+function weakestDomain(domains, gap) {
+  const r = DOMAINS.map((d) => [d, domains[d]?.ratio ?? 0]).sort((a, b) => a[1] - b[1]);
+  return r[1][1] - r[0][1] >= gap ? r[0][0] : null; // null = nu e clar mai slab
+}
+
+function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
+  const conqueredList = terrs.filter((t) => state.conquered[t.id])
+    .sort((a, b) => new Date(state.conquered[b.id].at) - new Date(state.conquered[a.id].at));
+  if (!conqueredList.length) return false;
+  const dom = weakestDomain(domains, cfg.loss.clearGap);
+  const victim = (dom && conqueredList.find((t) => t.domain === dom)) || conqueredList[0];
+  const rival = pick(RIVALS, rng);
+  delete state.conquered[victim.id];
+  state.territoryStart[victim.id] = now.toISOString();
+  state.lost[victim.id] = { rival, at: now.toISOString() };
+  const habit = HABIT[victim.domain] || 'săptămâna în mână';
+  events.push(log(state, now, 'loss',
+    `${rival} a pus stăpânire pe ${victim.name}. Boierii spun că nu l-ai fi lăsat dacă în luna trecută ți-ai fi ținut ${habit}.`,
+    { territory: victim.id }));
+  demoteIfEmpty(state, terrs, now, events);
+  return true;
+}
+
+function domainEvent(state, kind, domain, rng, now, events) {
+  const base = kind === 'fail' ? SOURCES : WINS;
+  const vars = kind === 'fail' ? FAIL_VARIANTS : WIN_VARIANTS;
+  const group = groupOf(state.rank);
+  const options = [base[group][domain], ...(vars[group]?.[domain] || [])];
+  const key = `${kind}:${group}:${domain}`;
+  const last = state.lastEvents[key];
+  const pool = options.map((_, i) => i).filter((i) => i !== last || options.length === 1);
+  const idx = pool[Math.floor(rng() * pool.length) % pool.length];
+  state.lastEvents[key] = idx;
+  events.push(log(state, now, kind === 'fail' ? 'bad' : 'good', `${DOMAIN_NAMES[domain]}: ${options[idx]}`, { domain }));
+}
+
+function die(state, now, events) {
+  const strongest = DOMAINS.map((d) => [d, state.recognition[d]]).sort((a, b) => b[1] - a[1])[0][0];
+  const old = state.dynasty;
+  state.ancestors.push({ generation: old.generation, name: old.name, diedAt: now.toISOString(), bestDomain: strongest });
+  events.push(log(state, now, 'death', `${old.name} (generația ${old.generation}) s-a stins, iar numele lui rămâne în jurnalul dinastiei.`));
+  const heirName = HEIR_NAMES[(old.generation) % HEIR_NAMES.length];
+  state.dynasty = { generation: old.generation + 1, name: heirName, trait: { domain: strongest, bonus: 15 }, bornAt: now.toISOString() };
+  state.rank = 0; state.conquered = {}; state.lost = {};
+  state.territoryStart = {}; state.createdAt = now.toISOString(); state.lowStreak = 0;
+  state.recognition = Object.fromEntries(DOMAINS.map((d) => [d, START_RECOGNITION + (d === strongest ? 15 : 0)]));
+  events.push(log(state, now, 'heir', `${heirName} preia numele. Moștenește recunoaștere în ${DOMAIN_NAMES[strongest]} (+15).`));
+}
+
+// Inchide o saptamana. week = { key, score, domains:{d:{count,points,ratio}} }
+function closeWeek(state, terrs, week, ctx, cfg, rng = Math.random, now = new Date()) {
+  const events = [];
+  state.lastEvents ||= {};
+  if (state.history.some((w) => w.key === week.key)) throw new Error(`Săptămâna ${week.key} e deja închisă`);
+  state.history.push({ key: week.key, score: week.score, domains: week.domains, closedAt: now.toISOString() });
+
+  // recunoastere
+  for (const d of DOMAINS) {
+    const r = week.domains[d]?.ratio ?? 0;
+    const delta = Math.round((Math.min(r, 1.2) - 0.5) * 16);
+    state.recognition[d] = Math.max(0, Math.min(100, state.recognition[d] + delta));
+  }
+  state.lowStreak = week.score <= cfg.loss.scoreAtOrBelow ? state.lowStreak + 1 : 0;
+
+  events.push(...checkConquests(state, terrs, ctx, now));
+
+  const bad = week.score <= cfg.loss.scoreAtOrBelow;
+  if (bad) loseTerritory(state, terrs, week.domains, cfg, rng, now, events);
+
+  // evenimente de domeniu: cel mai slab si cel mai bun
+  const ranked = DOMAINS.map((d) => [d, week.domains[d]?.ratio ?? 0]).sort((a, b) => a[1] - b[1]);
+  const worst = ranked[0], best = ranked[ranked.length - 1];
+  if (worst[1] < 0.5) domainEvent(state, 'fail', worst[0], rng, now, events);
+  if (best[1] >= 0.7 && best[0] !== worst[0]) domainEvent(state, 'win', best[0], rng, now, events);
+
+  // moartea
+  if (state.rank === 0 && !Object.keys(state.conquered).length && state.lowStreak >= cfg.death.weeksAtOrBelow) die(state, now, events);
+  return events;
+}
+
+const TERRS = [{"id":"obor","name":"Obor","tier":1,"domain":null,"target":"Trei săptămâni la rând cu scor de cel puțin 6 în raportul de duminică","type":"streak","weeks":3,"minScore":6},{"id":"colentina","name":"Colentina","tier":2,"domain":"drept","target":"20 de sesiuni de studiu pentru Barou bifate","type":"taskCount","count":20},{"id":"dorobanti","name":"Dorobanți","tier":2,"domain":"drept","target":"O sesiune de examene la Drept fără restanță","type":"tag"},{"id":"drumul-taberei","name":"Drumul Taberei","tier":2,"domain":"drept","target":"O săptămână cu 30 de grile rezolvate","type":"tag","proposed":true},{"id":"cotroceni","name":"Cotroceni","tier":2,"domain":"filosofie","target":"Un examen sau seminar de Filosofie promovat","type":"tag"},{"id":"cismigiu","name":"Cișmigiu","tier":2,"domain":"filosofie","target":"O lectură terminată pe lună, trei luni la rând","type":"tag"},{"id":"militari","name":"Militari","tier":2,"domain":"filosofie","target":"O lună de cursuri de Filosofie fără absență","type":"tag","proposed":true},{"id":"floreasca","name":"Floreasca","tier":2,"domain":"sport","target":"Opt săptămâni cu cel puțin trei antrenamente","type":"weeklyDomain","minTasks":3,"weeks":8},{"id":"centrul-vechi","name":"Centrul Vechi","tier":2,"domain":"sport","target":"Primul muscle-up strict din arborele de calistenie","type":"tag"},{"id":"pantelimon","name":"Pantelimon","tier":2,"domain":"sport","target":"Drumul Obor–centru cu skate-ul, fără să cobori","type":"tag"},{"id":"berceni","name":"Berceni","tier":2,"domain":"casa","target":"O lună cu toate task-urile de casă în termen","type":"tag"},{"id":"giulesti","name":"Giulești","tier":2,"domain":"casa","target":"Patru săptămâni cu cel puțin 3 treburi de casă bifate","type":"weeklyDomain","minTasks":3,"weeks":4,"proposed":true},{"id":"buftea","name":"Buftea","tier":3,"domain":"drept","target":"O simulare de Barou cu rezultat bun","type":"tag"},{"id":"chitila","name":"Chitila","tier":3,"domain":"drept","target":"O lună cu cel puțin 12 sesiuni de studiu Barou","type":"taskCount","count":12,"proposed":true},{"id":"magurele","name":"Măgurele","tier":3,"domain":"filosofie","target":"Un eseu sau o lucrare terminată și predată","type":"tag"},{"id":"otopeni","name":"Otopeni","tier":3,"domain":"filosofie","target":"Două cărți terminate într-o lună","type":"tag","proposed":true},{"id":"voluntari","name":"Voluntari","tier":3,"domain":"sport","target":"Un nou skill din arbore în patru săptămâni","type":"tag"},{"id":"bragadiru","name":"Bragadiru","tier":3,"domain":"casa","target":"O lună fără nicio restanță la treburile casei","type":"tag","proposed":true},{"id":"prahova","name":"Prahova","tier":4,"domain":"drept","target":"De scris când ajungi aici","type":"tag","sketch":true},{"id":"dambovita","name":"Dâmbovița","tier":4,"domain":"filosofie","target":"De scris când ajungi aici","type":"tag","sketch":true},{"id":"arges","name":"Argeș","tier":4,"domain":"sport","target":"De scris când ajungi aici","type":"tag","sketch":true},{"id":"giurgiu","name":"Giurgiu","tier":4,"domain":"casa","target":"De scris când ajungi aici","type":"tag","sketch":true}];
+const CFG = {"port":8787,"todoist":{"projectName":"The Realm","cacheSeconds":60},"score":{"weeklyTargetPoints":40,"domainShare":{"drept":0.4,"filosofie":0.2,"sport":0.25,"casa":0.15},"priorityPoints":{"1":1,"2":2,"3":3,"4":4},"labelPoints":{"easy":1,"medium":2,"hard":3,"boss-fight":5}},"domains":{"dreptLabels":["barou","grile","civil","penal","proccivila","procpenala","licenta","profesie"],"sectionToDomain":{"library":"filosofie","bonfire":"filosofie","barracks":"sport","keep":"casa"},"labelToDomain":{"body":"sport","upkeep":"casa","mind":"filosofie"}},"autoClose":{"enabled":true,"hour":21,"checkMinutes":10},"loss":{"scoreAtOrBelow":4,"clearGap":0.15},"death":{"weeksAtOrBelow":2}};
+
+// ---- parametri: jocul se reface de la aceasta data, saptamana cu saptamana ----
+const GAME_START = new Date(2026, 10, 16);                       // luni 16 nov 2026
+const boundary = (i) => new Date(2026, 10, 22 + 7 * i, CFG.autoClose.hour, 0); // sfarsitul saptamanii i: duminica 21:00
+const SERVER = 'Todoist';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const DOMAIN_COLOR = { drept: '#8c3b3b', filosofie: '#4b6a9b', sport: '#5d8a4a', casa: '#a8793a' };
+const STATUS = { conquered: 'cucerit', available: 'disponibil', locked: 'încă închis', lost: 'pierdut' };
+let selected = 'obor', model = null;
+
+// ---- Todoist ----
+function classify(task, sectionName) {
+  const d = CFG.domains, labels = task.labels;
+  if (labels.some((l) => d.dreptLabels.includes(l))) return 'drept';
+  for (const l of labels) if (d.labelToDomain[l]) return d.labelToDomain[l];
+  const sec = (sectionName || '').toLowerCase();
+  for (const [k, v] of Object.entries(d.sectionToDomain)) if (sec.includes(k)) return v;
+  return null;
+}
+// ---- reluarea jocului din istoricul Todoist ----
+function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function compute(tasks, now) {
+  const state = newState(GAME_START);
+  let i = 0;
+  for (; boundary(i) <= now; i++) {
+    const lo = new Date(Math.max(+GAME_START, +boundary(i - 1))), hi = boundary(i);
+    const wk = tasks.filter((t) => t.at >= lo && t.at < hi);
+    const week = { key: `W${i}`, ...scoreWeek(wk, CFG.score) };
+    closeWeek(state, TERRS, week, { tasks: tasks.filter((t) => t.at < hi) }, CFG, seeded(i * 7919 + 13), hi);
+  }
+  const ctx = { tasks };
+  checkConquests(state, TERRS, ctx, now);
+  const lo = new Date(Math.max(+GAME_START, +boundary(i - 1)));
+  const current = scoreWeek(tasks.filter((t) => t.at >= lo), CFG.score);
+  const territories = TERRS.map((t) => ({ ...t,
+    status: state.conquered[t.id] ? 'conquered' : state.lost[t.id] ? 'lost' : isAvailable(t, state) ? 'available' : 'locked',
+    rival: state.lost[t.id]?.rival || null, ...evaluate(t, state, ctx) }));
+  return { state, territories, current, closesAt: boundary(i), weeksClosed: i, taskCount: tasks.length };
+}
+
+// ---- afisare (doar citire) ----
+const RINGS = { 1: [0, 70], 2: [80, 175], 3: [185, 265], 4: [275, 350] };
+const pol = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
+function sector(inner, outer, a0, a1) {
+  if (inner === 0) return `M${-outer} 0 a${outer} ${outer} 0 1 0 ${2 * outer} 0 a${outer} ${outer} 0 1 0 ${-2 * outer} 0`;
+  const [x0, y0] = pol(outer, a0), [x1, y1] = pol(outer, a1), [x2, y2] = pol(inner, a1), [x3, y3] = pol(inner, a0);
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${x0} ${y0} A${outer} ${outer} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${inner} ${inner} 0 ${large} 0 ${x3} ${y3} Z`;
+}
+function fillFor(t) {
+  const c = t.domain ? DOMAIN_COLOR[t.domain] : '#c8a24a';
+  if (t.status === 'conquered') return [c, 1];
+  if (t.status === 'lost') return ['#7a1f1f', 0.95];
+  if (t.status === 'available') return [c, 0.35];
+  return ['#4a4234', 0.55];
+}
+function renderMap() {
+  let out = '';
+  for (const tier of [...new Set(model.territories.map((t) => t.tier))]) {
+    const list = model.territories.filter((t) => t.tier === tier), [inner, outer] = RINGS[tier] || [0, 0];
+    if (!outer) continue;
+    const gap = list.length > 1 ? 0.03 : 0;
+    list.forEach((t, i) => {
+      const a0 = -Math.PI / 2 + (i / list.length) * 2 * Math.PI + gap, a1 = -Math.PI / 2 + ((i + 1) / list.length) * 2 * Math.PI - gap;
+      const [fill, op] = fillFor(t), [lx, ly] = tier === 1 ? [0, 0] : pol((inner + outer) / 2, (a0 + a1) / 2);
+      const flag = t.status === 'conquered' ? '⚑ ' : t.status === 'lost' ? '✕ ' : '';
+      out += `<path class="sector ${selected === t.id ? 'sel' : ''}" data-id="${t.id}" d="${sector(inner, outer, a0, a1)}" fill="${fill}" fill-opacity="${op}"><title>${esc(t.name)} — ${STATUS[t.status]}</title></path>`;
+      out += `<text class="lbl ${list.length > 8 ? 'small' : ''}" x="${lx}" y="${ly}" dy="4">${flag}${esc(t.name)}</text>`;
+    });
+  }
+  $('map').innerHTML = out;
+  $('map').querySelectorAll('.sector').forEach((el) => el.addEventListener('click', () => { selected = el.dataset.id; render(); }));
+}
+function renderTerritory() {
+  const t = model.territories.find((x) => x.id === selected) || model.territories[0];
+  const unit = { streak: 'săptămâni', taskCount: 'task-uri', weeklyDomain: 'săptămâni' }[t.type];
+  let h = `<h2>${esc(t.name)} <span class="sub">· ${t.domain ? DOMAIN_NAMES[t.domain] : 'Țara întreagă'} · ${STATUS[t.status]}</span></h2><p>${esc(t.target)}</p>`;
+  if (t.status === 'lost') h += `<p class="warn">Luat de ${esc(t.rival)}. Îl recucerești cu aceeași țintă.</p>`;
+  if (unit) h += `<div class="sub">${t.progress} / ${t.goal} ${unit}</div><div class="bar"><i style="width:${t.goal ? Math.round(t.progress / t.goal * 100) : 0}%"></i></div>`;
+  if (t.type === 'tag' && (t.status === 'available' || t.status === 'lost')) h += `<p class="sub">Se cucerește când bifezi în Todoist un task cu <b>[${esc(t.name)}]</b> în titlu.</p>`;
+  if (t.status === 'locked') h += '<p class="sub">Se deschide când ajungi la un rang mai mare.</p>';
+  $('territory').innerHTML = h;
+}
+function renderWeek() {
+  const w = model.current, s = model.state;
+  let h = `<h2>Săptămâna curentă</h2><div class="bar"><i style="width:${w.score * 10}%"></i></div><div>Scor până acum: <b>${w.score}/10</b></div>`;
+  for (const d of DOMAINS) h += `<div class="sub">${DOMAIN_NAMES[d]}: ${w.domains[d].count} task-uri · ${Math.round(w.domains[d].ratio * 100)}%</div>`;
+  h += `<p class="sub">Se închide singură ${model.closesAt.toLocaleDateString('ro-RO', { weekday: 'long' })} la ${CFG.autoClose.hour}:00.</p>`;
+  const hist = s.history.slice(-8).map((x) => x.score).join(' · ');
+  if (hist) h += `<div class="sub">Ultimele scoruri: ${hist}</div>`;
+  $('week').innerHTML = h;
+}
+function renderRecognition() {
+  $('recognition').innerHTML = '<h2>Recunoaștere</h2>' + DOMAINS.map((d) => `<div class="sub">${DOMAIN_NAMES[d]}: ${model.state.recognition[d]}</div><div class="bar"><i style="width:${model.state.recognition[d]}%;background:${DOMAIN_COLOR[d]}"></i></div>`).join('');
+}
+function renderJournal() {
+  const s = model.state;
+  let h = '<h2>Jurnalul dinastiei</h2>';
+  if (s.ancestors.length) h += `<div class="sub">Strămoși: ${s.ancestors.map((a) => `${esc(a.name)} (gen. ${a.generation})`).join(', ')}</div>`;
+  const items = s.journal.slice(-25).reverse();
+  h += items.length ? items.map((e) => `<div class="ev ${e.kind}">${esc(e.text)}<small>${new Date(e.at).toLocaleDateString('ro-RO')} · ${esc(e.rank)} · gen. ${e.generation}</small></div>`).join('') : '<p class="sub">Povestea începe la prima închidere de săptămână.</p>';
+  $('journal').innerHTML = h;
+}
+function render() {
+  const s = model.state, r = RANKS[s.rank];
+  $('who').textContent = `${s.dynasty.name}, generația ${s.dynasty.generation}` + (s.dynasty.trait ? ` · moștenire: +${s.dynasty.trait.bonus} ${DOMAIN_NAMES[s.dynasty.trait.domain]}` : '');
+  $('rank').innerHTML = `<b>${esc(r.name)}</b><span class="sub">Următorul pas: ${esc(r.next)}${STEP_FACTORS[s.rank] ? ` · dificultate ×${STEP_FACTORS[s.rank]}` : ''}</span>`;
+  renderMap(); renderTerritory(); renderWeek(); renderRecognition(); renderJournal();
+  $('app').hidden = false;
+}
+
+// Varianta pentru aplicatia Android: citeste Todoist direct (API v1), cu tokenul salvat pe telefon.
+const API = 'https://api.todoist.com/api/v1';
+const TOKEN_KEY = 'dinastia-token';
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
+const setToken = (v) => { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch {} };
+
+async function api(path, params = {}) {
+  const url = new URL(API + path);
+  for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, v);
+  let res;
+  try { res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${getToken()}` } }); }
+  catch { throw { code: 'network' }; }
+  if (res.status === 401 || res.status === 403) throw { code: 'bad_token' };
+  if (!res.ok) throw { code: 'http', status: res.status };
+  return res.json();
+}
+async function paged(path, params) {
+  const out = []; let cursor;
+  for (let i = 0; i < 30; i++) {
+    const r = await api(path, { ...params, limit: 200, cursor });
+    out.push(...(r.results || r.items || []));
+    cursor = r.next_cursor;
+    if (!cursor) break;
+  }
+  return out;
+}
+const prio = (p) => (typeof p === 'string' ? String(5 - Number(p.slice(1))) : String(p || 1)); // API: 4 = p1 (cel mai urgent)
+
+async function fetchTasks() {
+  const proj = (await paged('/projects')).find((p) => p.name.toLowerCase() === CFG.todoist.projectName.toLowerCase());
+  if (!proj) throw { code: 'no_project' };
+  const sections = Object.fromEntries((await paged('/sections', { project_id: proj.id })).map((s) => [s.id, s.name]));
+  const end = new Date(Date.now() + 864e5), out = [];
+  // ferestre de 60 de zile (API-ul limiteaza intervalul)
+  for (let from = new Date(GAME_START); from < end; from = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 60)) {
+    const to = new Date(Math.min(+end, +new Date(from.getFullYear(), from.getMonth(), from.getDate() + 60)));
+    const items = await paged('/tasks/completed/by_completion_date', { since: from.toISOString(), until: to.toISOString() });
+    for (const x of items) {
+      if (String(x.project_id) !== String(proj.id)) continue;
+      const labels = (x.labels || []).map((l) => String(l).toLowerCase());
+      const task = { id: String(x.task_id || x.id), content: x.content || '', labels, priority: prio(x.priority) };
+      const at = x.completed_at || x.completedAt;
+      out.push({ ...task, domain: classify(task, sections[x.section_id]), points: taskPoints(task, CFG.score), completedAt: at, at: new Date(at) });
+    }
+  }
+  return out;
+}
+
+function showSetup(msg) {
+  $('app').hidden = true;
+  $('status').hidden = false;
+  $('status').innerHTML = `<div class="card" style="max-width:420px;margin:0 auto;text-align:left">
+    <h2>Conectează Todoist</h2>
+    <p class="sub">O singură dată. În Todoist (pe web): Setări → Integrări → Dezvoltator → „API token”. Tokenul rămâne doar pe acest telefon și aplicația îl folosește doar ca să citească.</p>
+    ${msg ? `<p class="warn">${esc(msg)}</p>` : ''}
+    <input id="tok" type="password" autocomplete="off" placeholder="Lipește tokenul aici" style="width:100%;padding:10px;margin:8px 0;border-radius:6px;border:1px solid var(--line);background:var(--bar);color:var(--ink);font:inherit">
+    <button id="save">Salvează și deschide</button></div>`;
+  $('save').addEventListener('click', () => { const v = $('tok').value.trim(); if (v) { setToken(v); load(); } });
+}
+function showError(e) {
+  const msg = { no_project: 'Nu găsesc proiectul „The Realm” în Todoist.', network: 'Nu am internet sau Todoist nu răspunde.', http: `Todoist a răspuns cu eroarea ${e?.status}.` }[e?.code] || 'Nu am putut citi Todoist acum.';
+  $('status').hidden = false;
+  $('status').innerHTML = `<p class="warn">${esc(msg)}</p><button id="retry">Încearcă din nou</button> <button id="reset" style="background:transparent;color:var(--ink);border:1px solid var(--line)">Schimbă tokenul</button>`;
+  $('retry').addEventListener('click', load);
+  $('reset').addEventListener('click', () => { setToken(''); showSetup(''); });
+}
+let loading = false;
+async function load() {
+  if (loading) return;
+  if (!getToken()) return showSetup('');
+  loading = true;
+  try {
+    model = compute(await fetchTasks(), new Date());
+    $('status').hidden = true; render();
+  } catch (e) {
+    if (e?.code === 'bad_token') { setToken(''); showSetup('Tokenul nu a fost acceptat. Verifică-l și lipește-l din nou.'); }
+    else if (!model) showError(e);
+  } finally { loading = false; }
+}
+load();
+setInterval(() => { if (!document.hidden && model) load(); }, 5 * 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && model) load(); });
+
+</script>
+</body></html>

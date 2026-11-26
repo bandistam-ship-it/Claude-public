@@ -1,0 +1,8 @@
+{
+  "name": "dinastia-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": { "web": "node ../artifact/build.mjs mobile" },
+  "dependencies": { "@capacitor/android": "^8.6.2", "@capacitor/core": "^8.6.2" },
+  "devDependencies": { "@capacitor/cli": "^8.6.2" }
+}
