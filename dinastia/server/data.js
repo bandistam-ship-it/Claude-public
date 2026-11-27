@@ -94,8 +94,50 @@ export const RIVALS = ['Spătarul Costache', 'Postelnicul Iordache', 'Căminarul
 export const HEIR_NAMES = ['Matei', 'Ilie', 'Vlad', 'Stelian', 'Neagu', 'Barbu', 'Gheorghe', 'Teodor', 'Constantin', 'Șerban'];
 
 export const CONQUEST_FLAVOR = {
-  1: 'Târgoveții își scot căciula când treci.',
-  2: 'Cartierul își deschide porțile, iar vecinii întreabă ce mai poruncești.',
-  3: 'Vornicii orașului vin să-ți sărute mâna și să-ți predea cheile.',
-  4: 'Județul se închină, iar dările sunt ale tale.'
+  1: ['Târgoveții își scot căciula când treci.', 'Negustorii îți ies în cale cu pâine și sare.', 'Clopotul din Obor bate pentru tine.'],
+  2: ['Cartierul își deschide porțile, iar vecinii întreabă ce mai poruncești.', 'Mahalagiii se adună în ulița ta și strigă numele tău.', 'Dascălii cartierului te primesc cu cartea deschisă.'],
+  3: ['Vornicii orașului vin să-ți sărute mâna și să-ți predea cheile.', 'Târgul îți deschide poarta, iar arendașii cer să te cunoască.', 'Judele orașului îți așază pecetea pe hrisov.'],
+  4: ['Județul se închină, iar dările sunt ale tale.', 'Boierii județului vin la tine cu pâine și cu jurământ.', 'Steagul tău flutură deasupra cetății.']
+};
+
+export const LOSS_TEXT = [
+  '{rival} a pus stăpânire pe {t}. Boierii spun că nu l-ai fi lăsat dacă în luna trecută ți-ai fi ținut {habit}.',
+  '{rival} a intrat în {t} cu oamenii lui, iar nimeni nu l-a oprit. Se zice că ai fi putut, cu {habit}.',
+  'În {t} flutură acum steagul lui {rival}. Vecinii povestesc că altfel ar fi fost cu {habit}.'
+];
+export const RECONQUER_TEXT = [
+  '{t} e din nou al tău. {rival} își strânge oamenii și pleacă.',
+  'Ai luat {t} înapoi de la {rival}. Se spune că nu va uita.'
+];
+export const DAILY = {
+  taran: {
+    drept: 'Logofătul a aflat că ai lucrat la „{t}”.',
+    filosofie: 'Preotul Valerie te-a văzut cu cartea în mână: „{t}”.',
+    sport: 'Hangiul a văzut că ai muncit cu brațele azi: „{t}”.',
+    casa: 'Vecinii au observat că ai pus rânduială: „{t}”.'
+  },
+  baron_obor: {
+    drept: 'Negustorii din târg au auzit că ai rezolvat „{t}”.',
+    filosofie: 'Dascălul grec a notat că ai trecut prin „{t}”.',
+    sport: 'Garda baroniei te-a văzut la instrucție: „{t}”.',
+    casa: 'Hambarele din Obor sunt în ordine: „{t}”.'
+  },
+  baron_buc: {
+    drept: 'Un act din cancelaria ta a fost închis: „{t}”.',
+    filosofie: 'Profesorii de la Academie vorbesc despre „{t}”.',
+    sport: 'Comandantul gărzii a lăudat instrucția: „{t}”.',
+    casa: 'Intendentul a bifat în catastif: „{t}”.'
+  },
+  conte: {
+    drept: 'Vornicii din Ilfov primesc vestea: „{t}”.',
+    filosofie: 'Cărturarii din județ au aflat de „{t}”.',
+    sport: 'Cavaleria județului a făcut exerciții: „{t}”.',
+    casa: 'Vistiernicul a trecut în socoteală: „{t}”.'
+  },
+  domn: {
+    drept: 'Divanul a luat act de „{t}”.',
+    filosofie: 'Epitropii au consemnat: „{t}”.',
+    sport: 'Oștirea domnească a ieșit la arme: „{t}”.',
+    casa: 'Visteria curții a închis la zi: „{t}”.'
+  }
 };

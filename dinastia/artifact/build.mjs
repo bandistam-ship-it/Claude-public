@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => fs.readFileSync(path.join(here, p), 'utf8');
 const strip = (s) => s.split('\n').filter((l) => !/^import .* from /.test(l)).join('\n').replace(/^export (const|function|class|async function) /gm, '$1 ');
-const bundle = ['../server/data.js', '../server/variants.js', '../server/week.js', '../server/game.js'].map((f) => strip(read(f))).join('\n');
+const bundle = ['../server/data.js', '../server/variants.js', '../server/week.js', '../server/game.js', '../server/extras.js'].map((f) => strip(read(f))).join('\n');
 const target = process.argv[2] || 'artifact';
 let html = read('template.html');
 html = html.replace('/*LOADER*/', () => read(target === 'mobile' ? 'loader.rest.js' : 'loader.mcp.js'))

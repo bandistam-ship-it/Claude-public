@@ -16,6 +16,7 @@
     "labelToDomain": { "body": "sport", "upkeep": "casa", "mind": "filosofie" }
   },
   "autoClose": { "enabled": true, "hour": 21, "checkMinutes": 10 },
+  "barou": { "examApprox": "2027-09-01", "labels": ["barou", "grile", "civil", "penal", "proccivila", "procpenala"], "names": { "barou": "Barou", "grile": "Grile", "civil": "Civil", "penal": "Penal", "proccivila": "Proc. civilă", "procpenala": "Proc. penală" } },
   "loss": { "scoreAtOrBelow": 4, "clearGap": 0.15 },
   "death": { "weeksAtOrBelow": 2 }
 }

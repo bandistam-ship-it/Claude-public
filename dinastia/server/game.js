@@ -1,6 +1,6 @@
 // Logica jocului. Functii care muteaza un obiect `state` si intorc evenimentele noi.
 import { FAIL_VARIANTS, WIN_VARIANTS } from './variants.js';
-import { DOMAINS, DOMAIN_NAMES, RANKS, SOURCES, WINS, HABIT, RIVALS, HEIR_NAMES, CONQUEST_FLAVOR } from './data.js';
+import { DOMAINS, DOMAIN_NAMES, RANKS, SOURCES, WINS, HABIT, RIVALS, HEIR_NAMES, CONQUEST_FLAVOR, LOSS_TEXT, RECONQUER_TEXT } from './data.js';
 
 export const START_RECOGNITION = 50;
 
@@ -69,10 +69,14 @@ export function evaluate(t, state, ctx = { tasks: [] }) {
 }
 
 function conquer(state, t, now, events) {
+  const was = state.lost[t.id];
   delete state.lost[t.id];
   state.conquered[t.id] = { at: now.toISOString() };
-  const flavor = CONQUEST_FLAVOR[t.tier] || '';
-  events.push(log(state, now, 'conquest', `${t.name} e al tău. ${flavor}`.trim(), { territory: t.id }));
+  const h = [...t.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+  let text;
+  if (was) text = RECONQUER_TEXT[h % RECONQUER_TEXT.length].replace('{t}', t.name).replace('{rival}', was.rival);
+  else { const f = CONQUEST_FLAVOR[t.tier] || ['']; text = `${t.name} e al tău. ${f[h % f.length]}`.trim(); }
+  events.push(log(state, now, 'conquest', text, { territory: t.id }));
 }
 
 function promote(state, terrs, now, events) {
@@ -122,20 +126,25 @@ function weakestDomain(domains, gap) {
   return r[1][1] - r[0][1] >= gap ? r[0][0] : null; // null = nu e clar mai slab
 }
 
-function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
+// Teritoriul care s-ar pierde acum (sau null daca nu ai niciunul).
+export function pickVictim(state, terrs, domains, cfg) {
   const conqueredList = terrs.filter((t) => state.conquered[t.id])
     .sort((a, b) => new Date(state.conquered[b.id].at) - new Date(state.conquered[a.id].at));
-  if (!conqueredList.length) return false;
+  if (!conqueredList.length) return null;
   const dom = weakestDomain(domains, cfg.loss.clearGap);
-  const victim = (dom && conqueredList.find((t) => t.domain === dom)) || conqueredList[0];
+  return (dom && conqueredList.find((t) => t.domain === dom)) || conqueredList[0];
+}
+
+function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
+  const victim = pickVictim(state, terrs, domains, cfg);
+  if (!victim) return false;
   const rival = pick(RIVALS, rng);
   delete state.conquered[victim.id];
   state.territoryStart[victim.id] = now.toISOString();
   state.lost[victim.id] = { rival, at: now.toISOString() };
   const habit = HABIT[victim.domain] || 'săptămâna în mână';
-  events.push(log(state, now, 'loss',
-    `${rival} a pus stăpânire pe ${victim.name}. Boierii spun că nu l-ai fi lăsat dacă în luna trecută ți-ai fi ținut ${habit}.`,
-    { territory: victim.id }));
+  const text = pick(LOSS_TEXT, rng).replace('{rival}', rival).replace('{t}', victim.name).replace('{habit}', habit);
+  events.push(log(state, now, 'loss', text, { territory: victim.id }));
   demoteIfEmpty(state, terrs, now, events);
   return true;
 }

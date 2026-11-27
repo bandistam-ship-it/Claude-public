@@ -22,9 +22,9 @@
     { "id": "voluntari", "name": "Voluntari", "tier": 3, "domain": "sport", "target": "Un nou skill din arbore în patru săptămâni", "type": "tag" },
     { "id": "bragadiru", "name": "Bragadiru", "tier": 3, "domain": "casa", "target": "O lună fără nicio restanță la treburile casei", "type": "tag", "proposed": true },
 
-    { "id": "prahova", "name": "Prahova", "tier": 4, "domain": "drept", "target": "De scris când ajungi aici", "type": "tag", "sketch": true },
-    { "id": "dambovita", "name": "Dâmbovița", "tier": 4, "domain": "filosofie", "target": "De scris când ajungi aici", "type": "tag", "sketch": true },
-    { "id": "arges", "name": "Argeș", "tier": 4, "domain": "sport", "target": "De scris când ajungi aici", "type": "tag", "sketch": true },
-    { "id": "giurgiu", "name": "Giurgiu", "tier": 4, "domain": "casa", "target": "De scris când ajungi aici", "type": "tag", "sketch": true }
+    { "id": "prahova", "name": "Prahova", "tier": 4, "domain": "drept", "target": "Admis la examenul de Barou 2027", "type": "tag", "proposed": true },
+    { "id": "dambovita", "name": "Dâmbovița", "tier": 4, "domain": "filosofie", "target": "Un semestru de Filosofie încheiat fără restanțe", "type": "tag", "proposed": true },
+    { "id": "arges", "name": "Argeș", "tier": 4, "domain": "sport", "target": "Un skill avansat din arborele de calistenie, ținut 10 secunde", "type": "tag", "proposed": true },
+    { "id": "giurgiu", "name": "Giurgiu", "tier": 4, "domain": "casa", "target": "Trei luni cu toate treburile casei în termen", "type": "tag", "proposed": true }
   ]
 }

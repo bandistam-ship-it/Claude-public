@@ -28,6 +28,8 @@ button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .ev.good{border-color:var(--sport)}.ev.bad,.ev.loss{border-color:var(--lost)}.ev.conquest,.ev.rank{border-color:var(--gold)}.ev.death{border-color:#000;background:#150f0a}
 .ev small{color:var(--muted);display:block}
 .warn{color:#e9a96a;font-size:.92rem}
+.now{border-color:var(--gold)}.now b{color:var(--gold)}
+.risk{color:#f0a08a}
 .sector{cursor:pointer;stroke:#14100b;stroke-width:2}
 .sector:hover{filter:brightness(1.25)}.sector.sel{stroke:var(--gold);stroke-width:4}
 .lbl{fill:#fff;font-size:11px;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#000a;stroke-width:3px}
@@ -49,8 +51,11 @@ button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
     </div>
   </section>
   <aside>
+    <section class="card" id="now"></section>
     <section class="card" id="territory"></section>
     <section class="card" id="week"></section>
+    <section class="card" id="chronicle"></section>
+    <section class="card" id="barou"></section>
     <section class="card" id="recognition"></section>
     <section class="card" id="journal"></section>
   </aside>
@@ -152,10 +157,52 @@ const RIVALS = ['Spătarul Costache', 'Postelnicul Iordache', 'Căminarul Manola
 const HEIR_NAMES = ['Matei', 'Ilie', 'Vlad', 'Stelian', 'Neagu', 'Barbu', 'Gheorghe', 'Teodor', 'Constantin', 'Șerban'];
 
 const CONQUEST_FLAVOR = {
-  1: 'Târgoveții își scot căciula când treci.',
-  2: 'Cartierul își deschide porțile, iar vecinii întreabă ce mai poruncești.',
-  3: 'Vornicii orașului vin să-ți sărute mâna și să-ți predea cheile.',
-  4: 'Județul se închină, iar dările sunt ale tale.'
+  1: ['Târgoveții își scot căciula când treci.', 'Negustorii îți ies în cale cu pâine și sare.', 'Clopotul din Obor bate pentru tine.'],
+  2: ['Cartierul își deschide porțile, iar vecinii întreabă ce mai poruncești.', 'Mahalagiii se adună în ulița ta și strigă numele tău.', 'Dascălii cartierului te primesc cu cartea deschisă.'],
+  3: ['Vornicii orașului vin să-ți sărute mâna și să-ți predea cheile.', 'Târgul îți deschide poarta, iar arendașii cer să te cunoască.', 'Judele orașului îți așază pecetea pe hrisov.'],
+  4: ['Județul se închină, iar dările sunt ale tale.', 'Boierii județului vin la tine cu pâine și cu jurământ.', 'Steagul tău flutură deasupra cetății.']
+};
+
+const LOSS_TEXT = [
+  '{rival} a pus stăpânire pe {t}. Boierii spun că nu l-ai fi lăsat dacă în luna trecută ți-ai fi ținut {habit}.',
+  '{rival} a intrat în {t} cu oamenii lui, iar nimeni nu l-a oprit. Se zice că ai fi putut, cu {habit}.',
+  'În {t} flutură acum steagul lui {rival}. Vecinii povestesc că altfel ar fi fost cu {habit}.'
+];
+const RECONQUER_TEXT = [
+  '{t} e din nou al tău. {rival} își strânge oamenii și pleacă.',
+  'Ai luat {t} înapoi de la {rival}. Se spune că nu va uita.'
+];
+const DAILY = {
+  taran: {
+    drept: 'Logofătul a aflat că ai lucrat la „{t}”.',
+    filosofie: 'Preotul Valerie te-a văzut cu cartea în mână: „{t}”.',
+    sport: 'Hangiul a văzut că ai muncit cu brațele azi: „{t}”.',
+    casa: 'Vecinii au observat că ai pus rânduială: „{t}”.'
+  },
+  baron_obor: {
+    drept: 'Negustorii din târg au auzit că ai rezolvat „{t}”.',
+    filosofie: 'Dascălul grec a notat că ai trecut prin „{t}”.',
+    sport: 'Garda baroniei te-a văzut la instrucție: „{t}”.',
+    casa: 'Hambarele din Obor sunt în ordine: „{t}”.'
+  },
+  baron_buc: {
+    drept: 'Un act din cancelaria ta a fost închis: „{t}”.',
+    filosofie: 'Profesorii de la Academie vorbesc despre „{t}”.',
+    sport: 'Comandantul gărzii a lăudat instrucția: „{t}”.',
+    casa: 'Intendentul a bifat în catastif: „{t}”.'
+  },
+  conte: {
+    drept: 'Vornicii din Ilfov primesc vestea: „{t}”.',
+    filosofie: 'Cărturarii din județ au aflat de „{t}”.',
+    sport: 'Cavaleria județului a făcut exerciții: „{t}”.',
+    casa: 'Vistiernicul a trecut în socoteală: „{t}”.'
+  },
+  domn: {
+    drept: 'Divanul a luat act de „{t}”.',
+    filosofie: 'Epitropii au consemnat: „{t}”.',
+    sport: 'Oștirea domnească a ieșit la arme: „{t}”.',
+    casa: 'Visteria curții a închis la zi: „{t}”.'
+  }
 };
 
 // Variante extra (3 pe eveniment). Forma: [grup][domeniu] = [v1, v2, v3]
@@ -360,10 +407,14 @@ function evaluate(t, state, ctx = { tasks: [] }) {
 }
 
 function conquer(state, t, now, events) {
+  const was = state.lost[t.id];
   delete state.lost[t.id];
   state.conquered[t.id] = { at: now.toISOString() };
-  const flavor = CONQUEST_FLAVOR[t.tier] || '';
-  events.push(log(state, now, 'conquest', `${t.name} e al tău. ${flavor}`.trim(), { territory: t.id }));
+  const h = [...t.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+  let text;
+  if (was) text = RECONQUER_TEXT[h % RECONQUER_TEXT.length].replace('{t}', t.name).replace('{rival}', was.rival);
+  else { const f = CONQUEST_FLAVOR[t.tier] || ['']; text = `${t.name} e al tău. ${f[h % f.length]}`.trim(); }
+  events.push(log(state, now, 'conquest', text, { territory: t.id }));
 }
 
 function promote(state, terrs, now, events) {
@@ -413,20 +464,25 @@ function weakestDomain(domains, gap) {
   return r[1][1] - r[0][1] >= gap ? r[0][0] : null; // null = nu e clar mai slab
 }
 
-function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
+// Teritoriul care s-ar pierde acum (sau null daca nu ai niciunul).
+function pickVictim(state, terrs, domains, cfg) {
   const conqueredList = terrs.filter((t) => state.conquered[t.id])
     .sort((a, b) => new Date(state.conquered[b.id].at) - new Date(state.conquered[a.id].at));
-  if (!conqueredList.length) return false;
+  if (!conqueredList.length) return null;
   const dom = weakestDomain(domains, cfg.loss.clearGap);
-  const victim = (dom && conqueredList.find((t) => t.domain === dom)) || conqueredList[0];
+  return (dom && conqueredList.find((t) => t.domain === dom)) || conqueredList[0];
+}
+
+function loseTerritory(state, terrs, domains, cfg, rng, now, events) {
+  const victim = pickVictim(state, terrs, domains, cfg);
+  if (!victim) return false;
   const rival = pick(RIVALS, rng);
   delete state.conquered[victim.id];
   state.territoryStart[victim.id] = now.toISOString();
   state.lost[victim.id] = { rival, at: now.toISOString() };
   const habit = HABIT[victim.domain] || 'săptămâna în mână';
-  events.push(log(state, now, 'loss',
-    `${rival} a pus stăpânire pe ${victim.name}. Boierii spun că nu l-ai fi lăsat dacă în luna trecută ți-ai fi ținut ${habit}.`,
-    { territory: victim.id }));
+  const text = pick(LOSS_TEXT, rng).replace('{rival}', rival).replace('{t}', victim.name).replace('{habit}', habit);
+  events.push(log(state, now, 'loss', text, { territory: victim.id }));
   demoteIfEmpty(state, terrs, now, events);
   return true;
 }
@@ -488,8 +544,88 @@ function closeWeek(state, terrs, week, ctx, cfg, rng = Math.random, now = new Da
   return events;
 }
 
-const TERRS = [{"id":"obor","name":"Obor","tier":1,"domain":null,"target":"Trei săptămâni la rând cu scor de cel puțin 6 în raportul de duminică","type":"streak","weeks":3,"minScore":6},{"id":"colentina","name":"Colentina","tier":2,"domain":"drept","target":"20 de sesiuni de studiu pentru Barou bifate","type":"taskCount","count":20},{"id":"dorobanti","name":"Dorobanți","tier":2,"domain":"drept","target":"O sesiune de examene la Drept fără restanță","type":"tag"},{"id":"drumul-taberei","name":"Drumul Taberei","tier":2,"domain":"drept","target":"O săptămână cu 30 de grile rezolvate","type":"tag","proposed":true},{"id":"cotroceni","name":"Cotroceni","tier":2,"domain":"filosofie","target":"Un examen sau seminar de Filosofie promovat","type":"tag"},{"id":"cismigiu","name":"Cișmigiu","tier":2,"domain":"filosofie","target":"O lectură terminată pe lună, trei luni la rând","type":"tag"},{"id":"militari","name":"Militari","tier":2,"domain":"filosofie","target":"O lună de cursuri de Filosofie fără absență","type":"tag","proposed":true},{"id":"floreasca","name":"Floreasca","tier":2,"domain":"sport","target":"Opt săptămâni cu cel puțin trei antrenamente","type":"weeklyDomain","minTasks":3,"weeks":8},{"id":"centrul-vechi","name":"Centrul Vechi","tier":2,"domain":"sport","target":"Primul muscle-up strict din arborele de calistenie","type":"tag"},{"id":"pantelimon","name":"Pantelimon","tier":2,"domain":"sport","target":"Drumul Obor–centru cu skate-ul, fără să cobori","type":"tag"},{"id":"berceni","name":"Berceni","tier":2,"domain":"casa","target":"O lună cu toate task-urile de casă în termen","type":"tag"},{"id":"giulesti","name":"Giulești","tier":2,"domain":"casa","target":"Patru săptămâni cu cel puțin 3 treburi de casă bifate","type":"weeklyDomain","minTasks":3,"weeks":4,"proposed":true},{"id":"buftea","name":"Buftea","tier":3,"domain":"drept","target":"O simulare de Barou cu rezultat bun","type":"tag"},{"id":"chitila","name":"Chitila","tier":3,"domain":"drept","target":"O lună cu cel puțin 12 sesiuni de studiu Barou","type":"taskCount","count":12,"proposed":true},{"id":"magurele","name":"Măgurele","tier":3,"domain":"filosofie","target":"Un eseu sau o lucrare terminată și predată","type":"tag"},{"id":"otopeni","name":"Otopeni","tier":3,"domain":"filosofie","target":"Două cărți terminate într-o lună","type":"tag","proposed":true},{"id":"voluntari","name":"Voluntari","tier":3,"domain":"sport","target":"Un nou skill din arbore în patru săptămâni","type":"tag"},{"id":"bragadiru","name":"Bragadiru","tier":3,"domain":"casa","target":"O lună fără nicio restanță la treburile casei","type":"tag","proposed":true},{"id":"prahova","name":"Prahova","tier":4,"domain":"drept","target":"De scris când ajungi aici","type":"tag","sketch":true},{"id":"dambovita","name":"Dâmbovița","tier":4,"domain":"filosofie","target":"De scris când ajungi aici","type":"tag","sketch":true},{"id":"arges","name":"Argeș","tier":4,"domain":"sport","target":"De scris când ajungi aici","type":"tag","sketch":true},{"id":"giurgiu","name":"Giurgiu","tier":4,"domain":"casa","target":"De scris când ajungi aici","type":"tag","sketch":true}];
-const CFG = {"port":8787,"todoist":{"projectName":"The Realm","cacheSeconds":60},"score":{"weeklyTargetPoints":40,"domainShare":{"drept":0.4,"filosofie":0.2,"sport":0.25,"casa":0.15},"priorityPoints":{"1":1,"2":2,"3":3,"4":4},"labelPoints":{"easy":1,"medium":2,"hard":3,"boss-fight":5}},"domains":{"dreptLabels":["barou","grile","civil","penal","proccivila","procpenala","licenta","profesie"],"sectionToDomain":{"library":"filosofie","bonfire":"filosofie","barracks":"sport","keep":"casa"},"labelToDomain":{"body":"sport","upkeep":"casa","mind":"filosofie"}},"autoClose":{"enabled":true,"hour":21,"checkMinutes":10},"loss":{"scoreAtOrBelow":4,"clearGap":0.15},"death":{"weeksAtOrBelow":2}};
+// Calcule derivate pentru afisare: cronica zilei, urmatoarea cucerire, avertisment, serii, campania Barou, tinta adaptiva.
+
+const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const clip = (s, n = 70) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
+
+// Tinta saptamanala se calibreaza pe istoricul tau: percentila 75 a ultimelor 6 saptamani.
+function adaptiveTarget(history, base) {
+  const totals = history.slice(-6).map((w) => DOMAINS.reduce((a, d) => a + (w.domains?.[d]?.points || 0), 0)).filter((x) => x > 0);
+  if (totals.length < 2) return base;
+  const sorted = [...totals].sort((a, b) => a - b);
+  const p75 = sorted[Math.max(0, Math.ceil(sorted.length * 0.75) - 1)];
+  return Math.max(15, Math.min(80, Math.round(p75)));
+}
+
+// O propozitie pe zi activa, in vocea rangului curent.
+function dailyChronicle(tasks, rank, now, days = 7) {
+  const group = RANKS[Math.min(rank, RANKS.length - 1)].group;
+  const byDay = new Map();
+  for (const t of tasks) {
+    if (!t.domain) continue;
+    const k = dayKey(t.at);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(t);
+  }
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const list = byDay.get(dayKey(d));
+    if (!list) continue;
+    const pts = {};
+    for (const t of list) pts[t.domain] = (pts[t.domain] || 0) + t.points;
+    const dom = Object.keys(pts).sort((a, b) => pts[b] - pts[a])[0];
+    const top = list.filter((t) => t.domain === dom).sort((a, b) => b.points - a.points)[0];
+    const more = list.length - 1;
+    out.push({ day: d, count: list.length, domain: dom,
+      text: DAILY[group][dom].replace('{t}', clip(top.content.replace(/\[[^\]]*\]/g, '').trim() || 'o treabă')) + (more > 0 ? ` (și încă ${more})` : '') });
+  }
+  return out;
+}
+
+// Cel mai apropiat teritoriu de cucerit.
+function nextConquest(territories) {
+  const open = territories.filter((t) => t.status === 'available' || t.status === 'lost');
+  const auto = open.filter((t) => t.type !== 'tag' && t.goal > 1).sort((a, b) => b.progress / b.goal - a.progress / a.goal);
+  const t = auto[0] || open[0];
+  if (!t) return null;
+  const unit = { streak: 'săptămâni', taskCount: 'task-uri', weeklyDomain: 'săptămâni' }[t.type];
+  const text = unit ? `încă ${t.goal - t.progress} ${unit} până la ${t.name}` : `bifează un task cu [${t.name}] ca să cucerești ${t.name}`;
+  return { territory: t, text };
+}
+
+// Cat de aproape esti de o pierdere in saptamana curenta.
+function riskAssessment(state, terrs, current, cfg, now, closesAt) {
+  const daysLeft = (closesAt - now) / 864e5;
+  const low = current.score <= cfg.loss.scoreAtOrBelow;
+  const victim = pickVictim(state, terrs, current.domains, cfg);
+  return { atRisk: Boolean(victim) && low && daysLeft <= 3, victim, daysLeft, score: current.score };
+}
+
+function domainStreaks(history, min = 0.7) {
+  const out = {};
+  for (const d of DOMAINS) {
+    let n = 0;
+    for (let i = history.length - 1; i >= 0 && (history[i].domains?.[d]?.ratio ?? 0) >= min; i--) n++;
+    out[d] = n;
+  }
+  return out;
+}
+
+// Campania Barou: numaratoare inversa (data exacta e necunoscuta) si munca pe materii.
+function barouCampaign(tasks, cfg, now) {
+  const exam = new Date(cfg.barou.examApprox);
+  const days = Math.ceil((exam - now) / 864e5);
+  const subjects = {};
+  for (const t of tasks) for (const l of t.labels || []) if (cfg.barou.labels.includes(l)) subjects[l] = (subjects[l] || 0) + 1;
+  const week = tasks.filter((t) => now - t.at < 7 * 864e5 && (t.labels || []).some((l) => cfg.barou.labels.includes(l))).length;
+  const total = Object.values(subjects).reduce((a, b) => a + b, 0);
+  return { days, weeks: Math.floor(days / 7), subjects, total, lastWeek: week };
+}
+
+const TERRS = [{"id":"obor","name":"Obor","tier":1,"domain":null,"target":"Trei săptămâni la rând cu scor de cel puțin 6 în raportul de duminică","type":"streak","weeks":3,"minScore":6},{"id":"colentina","name":"Colentina","tier":2,"domain":"drept","target":"20 de sesiuni de studiu pentru Barou bifate","type":"taskCount","count":20},{"id":"dorobanti","name":"Dorobanți","tier":2,"domain":"drept","target":"O sesiune de examene la Drept fără restanță","type":"tag"},{"id":"drumul-taberei","name":"Drumul Taberei","tier":2,"domain":"drept","target":"O săptămână cu 30 de grile rezolvate","type":"tag","proposed":true},{"id":"cotroceni","name":"Cotroceni","tier":2,"domain":"filosofie","target":"Un examen sau seminar de Filosofie promovat","type":"tag"},{"id":"cismigiu","name":"Cișmigiu","tier":2,"domain":"filosofie","target":"O lectură terminată pe lună, trei luni la rând","type":"tag"},{"id":"militari","name":"Militari","tier":2,"domain":"filosofie","target":"O lună de cursuri de Filosofie fără absență","type":"tag","proposed":true},{"id":"floreasca","name":"Floreasca","tier":2,"domain":"sport","target":"Opt săptămâni cu cel puțin trei antrenamente","type":"weeklyDomain","minTasks":3,"weeks":8},{"id":"centrul-vechi","name":"Centrul Vechi","tier":2,"domain":"sport","target":"Primul muscle-up strict din arborele de calistenie","type":"tag"},{"id":"pantelimon","name":"Pantelimon","tier":2,"domain":"sport","target":"Drumul Obor–centru cu skate-ul, fără să cobori","type":"tag"},{"id":"berceni","name":"Berceni","tier":2,"domain":"casa","target":"O lună cu toate task-urile de casă în termen","type":"tag"},{"id":"giulesti","name":"Giulești","tier":2,"domain":"casa","target":"Patru săptămâni cu cel puțin 3 treburi de casă bifate","type":"weeklyDomain","minTasks":3,"weeks":4,"proposed":true},{"id":"buftea","name":"Buftea","tier":3,"domain":"drept","target":"O simulare de Barou cu rezultat bun","type":"tag"},{"id":"chitila","name":"Chitila","tier":3,"domain":"drept","target":"O lună cu cel puțin 12 sesiuni de studiu Barou","type":"taskCount","count":12,"proposed":true},{"id":"magurele","name":"Măgurele","tier":3,"domain":"filosofie","target":"Un eseu sau o lucrare terminată și predată","type":"tag"},{"id":"otopeni","name":"Otopeni","tier":3,"domain":"filosofie","target":"Două cărți terminate într-o lună","type":"tag","proposed":true},{"id":"voluntari","name":"Voluntari","tier":3,"domain":"sport","target":"Un nou skill din arbore în patru săptămâni","type":"tag"},{"id":"bragadiru","name":"Bragadiru","tier":3,"domain":"casa","target":"O lună fără nicio restanță la treburile casei","type":"tag","proposed":true},{"id":"prahova","name":"Prahova","tier":4,"domain":"drept","target":"Admis la examenul de Barou 2027","type":"tag","proposed":true},{"id":"dambovita","name":"Dâmbovița","tier":4,"domain":"filosofie","target":"Un semestru de Filosofie încheiat fără restanțe","type":"tag","proposed":true},{"id":"arges","name":"Argeș","tier":4,"domain":"sport","target":"Un skill avansat din arborele de calistenie, ținut 10 secunde","type":"tag","proposed":true},{"id":"giurgiu","name":"Giurgiu","tier":4,"domain":"casa","target":"Trei luni cu toate treburile casei în termen","type":"tag","proposed":true}];
+const CFG = {"port":8787,"todoist":{"projectName":"The Realm","cacheSeconds":60},"score":{"weeklyTargetPoints":40,"domainShare":{"drept":0.4,"filosofie":0.2,"sport":0.25,"casa":0.15},"priorityPoints":{"1":1,"2":2,"3":3,"4":4},"labelPoints":{"easy":1,"medium":2,"hard":3,"boss-fight":5}},"domains":{"dreptLabels":["barou","grile","civil","penal","proccivila","procpenala","licenta","profesie"],"sectionToDomain":{"library":"filosofie","bonfire":"filosofie","barracks":"sport","keep":"casa"},"labelToDomain":{"body":"sport","upkeep":"casa","mind":"filosofie"}},"autoClose":{"enabled":true,"hour":21,"checkMinutes":10},"barou":{"examApprox":"2027-09-01","labels":["barou","grile","civil","penal","proccivila","procpenala"],"names":{"barou":"Barou","grile":"Grile","civil":"Civil","penal":"Penal","proccivila":"Proc. civilă","procpenala":"Proc. penală"}},"loss":{"scoreAtOrBelow":4,"clearGap":0.15},"death":{"weeksAtOrBelow":2}};
 
 // ---- parametri: jocul se reface de la aceasta data, saptamana cu saptamana ----
 const GAME_START = new Date(2026, 10, 16);                       // luni 16 nov 2026
@@ -515,21 +651,27 @@ function classify(task, sectionName) {
 function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function compute(tasks, now) {
   const state = newState(GAME_START);
+  const cfgFor = () => ({ ...CFG.score, weeklyTargetPoints: adaptiveTarget(state.history, CFG.score.weeklyTargetPoints) });
   let i = 0;
   for (; boundary(i) <= now; i++) {
     const lo = new Date(Math.max(+GAME_START, +boundary(i - 1))), hi = boundary(i);
     const wk = tasks.filter((t) => t.at >= lo && t.at < hi);
-    const week = { key: `W${i}`, ...scoreWeek(wk, CFG.score) };
+    const week = { key: `W${i}`, ...scoreWeek(wk, cfgFor()) };
     closeWeek(state, TERRS, week, { tasks: tasks.filter((t) => t.at < hi) }, CFG, seeded(i * 7919 + 13), hi);
   }
   const ctx = { tasks };
   checkConquests(state, TERRS, ctx, now);
   const lo = new Date(Math.max(+GAME_START, +boundary(i - 1)));
-  const current = scoreWeek(tasks.filter((t) => t.at >= lo), CFG.score);
+  const scoreCfg = cfgFor();
+  const current = scoreWeek(tasks.filter((t) => t.at >= lo), scoreCfg);
   const territories = TERRS.map((t) => ({ ...t,
     status: state.conquered[t.id] ? 'conquered' : state.lost[t.id] ? 'lost' : isAvailable(t, state) ? 'available' : 'locked',
     rival: state.lost[t.id]?.rival || null, ...evaluate(t, state, ctx) }));
-  return { state, territories, current, closesAt: boundary(i), weeksClosed: i, taskCount: tasks.length };
+  const closesAt = boundary(i);
+  return { state, territories, current, closesAt, weeksClosed: i, taskCount: tasks.length, target: scoreCfg.weeklyTargetPoints,
+    chronicle: dailyChronicle(tasks, state.rank, now, 7), next: nextConquest(territories),
+    risk: riskAssessment(state, TERRS, current, CFG, now, closesAt), streaks: domainStreaks(state.history),
+    barou: barouCampaign(tasks, CFG, now) };
 }
 
 // ---- afisare (doar citire) ----
@@ -575,17 +717,34 @@ function renderTerritory() {
   if (t.status === 'locked') h += '<p class="sub">Se deschide când ajungi la un rang mai mare.</p>';
   $('territory').innerHTML = h;
 }
+function renderNow() {
+  const m = model, parts = [];
+  if (m.risk.atRisk) parts.push(`<p class="risk"><b>Atenție:</b> ${esc(m.risk.victim.name)} e în pericol. Scorul e ${m.risk.score}/10 și rămân ${Math.max(0, Math.ceil(m.risk.daysLeft))} zile. Încă poți schimba săptămâna.</p>`);
+  if (m.next) parts.push(`<p><b>Următoarea cucerire:</b> ${esc(m.next.text)}.</p>`);
+  const h = new Date().getHours();
+  $('now').className = 'card' + (m.risk.atRisk ? '' : ' now');
+  $('now').innerHTML = `<h2>Acum</h2>${parts.join('') || '<p class="sub">Nicio țintă deschisă. Mai urcă un rang.</p>'}`;
+}
+function renderChronicle() {
+  const c = model.chronicle;
+  $('chronicle').innerHTML = '<h2>Cronica zilelor</h2>' + (c.length ? c.map((e) => `<div class="ev good">${esc(e.text)}<small>${e.day.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' })}</small></div>`).join('') : '<p class="sub">Nimic bifat în ultimele zile. Prima treabă bifată în Todoist apare aici.</p>');
+}
+function renderBarou() {
+  const b = model.barou, names = CFG.barou.names;
+  const subj = Object.entries(b.subjects).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${names[k] || k}: ${v}`).join(' · ');
+  $('barou').innerHTML = `<h2>Campania Barou 2027</h2><p><b>~${b.days} zile</b> până în septembrie 2027 (~${b.weeks} săptămâni). Data exactă nu e încă anunțată.</p><div class="sub">Ultimele 7 zile: ${b.lastWeek} task-uri de Barou · total ${b.total}</div>${subj ? `<div class="sub">${esc(subj)}</div>` : ''}`;
+}
 function renderWeek() {
   const w = model.current, s = model.state;
   let h = `<h2>Săptămâna curentă</h2><div class="bar"><i style="width:${w.score * 10}%"></i></div><div>Scor până acum: <b>${w.score}/10</b></div>`;
   for (const d of DOMAINS) h += `<div class="sub">${DOMAIN_NAMES[d]}: ${w.domains[d].count} task-uri · ${Math.round(w.domains[d].ratio * 100)}%</div>`;
-  h += `<p class="sub">Se închide singură ${model.closesAt.toLocaleDateString('ro-RO', { weekday: 'long' })} la ${CFG.autoClose.hour}:00.</p>`;
+  h += `<p class="sub">Ținta ta din ultimele săptămâni: ${model.target} puncte. Se calibrează singură.</p><p class="sub">Se închide singură ${model.closesAt.toLocaleDateString('ro-RO', { weekday: 'long' })} la ${CFG.autoClose.hour}:00.</p>`;
   const hist = s.history.slice(-8).map((x) => x.score).join(' · ');
   if (hist) h += `<div class="sub">Ultimele scoruri: ${hist}</div>`;
   $('week').innerHTML = h;
 }
 function renderRecognition() {
-  $('recognition').innerHTML = '<h2>Recunoaștere</h2>' + DOMAINS.map((d) => `<div class="sub">${DOMAIN_NAMES[d]}: ${model.state.recognition[d]}</div><div class="bar"><i style="width:${model.state.recognition[d]}%;background:${DOMAIN_COLOR[d]}"></i></div>`).join('');
+  $('recognition').innerHTML = '<h2>Recunoaștere</h2>' + DOMAINS.map((d) => `<div class="sub">${DOMAIN_NAMES[d]}: ${model.state.recognition[d]}${model.streaks[d] >= 2 ? ` · serie ${model.streaks[d]} săptămâni` : ''}</div><div class="bar"><i style="width:${model.state.recognition[d]}%;background:${DOMAIN_COLOR[d]}"></i></div>`).join('');
 }
 function renderJournal() {
   const s = model.state;
@@ -599,7 +758,8 @@ function render() {
   const s = model.state, r = RANKS[s.rank];
   $('who').textContent = `${s.dynasty.name}, generația ${s.dynasty.generation}` + (s.dynasty.trait ? ` · moștenire: +${s.dynasty.trait.bonus} ${DOMAIN_NAMES[s.dynasty.trait.domain]}` : '');
   $('rank').innerHTML = `<b>${esc(r.name)}</b><span class="sub">Următorul pas: ${esc(r.next)}${STEP_FACTORS[s.rank] ? ` · dificultate ×${STEP_FACTORS[s.rank]}` : ''}</span>`;
-  renderMap(); renderTerritory(); renderWeek(); renderRecognition(); renderJournal();
+  renderNow(); renderMap(); renderTerritory(); renderWeek(); renderChronicle(); renderBarou(); renderRecognition(); renderJournal();
+  if (typeof afterModel === 'function') afterModel(model);
   $('app').hidden = false;
 }
 
@@ -648,6 +808,38 @@ async function fetchTasks() {
       out.push({ ...task, domain: classify(task, sections[x.section_id]), points: taskPoints(task, CFG.score), completedAt: at, at: new Date(at) });
     }
   }
+  try { out.push(...(await recurring(proj, sections, out))); } catch { /* activitatea e optionala */ }
+  return out;
+}
+
+// Task-urile recurente nu apar in lista de bifate; le luam din jurnalul de activitate si
+// luam etichetele/prioritatea de pe task-ul activ. Formatul nu e verificat cu un cont real, deci e defensiv.
+async function recurring(proj, sections, done) {
+  const seen = new Set(done.map((t) => t.id + '|' + String(t.completedAt).slice(0, 16)));
+  const events = [];
+  let cursor;
+  for (let i = 0; i < 10; i++) {
+    const r = await api('/activities', { object_type: 'task', event_type: 'completed', parent_project_id: proj.id, limit: 100, cursor });
+    events.push(...(r.results || r.events || []));
+    cursor = r.next_cursor;
+    if (!cursor) break;
+  }
+  const out = [], meta = new Map();
+  for (const e of events) {
+    const at = e.event_date || e.date;
+    const id = String(e.object_id || e.id || '');
+    if (!at || !id || new Date(at) < GAME_START) continue;
+    if (seen.has(id + '|' + String(at).slice(0, 16))) continue;
+    if (!meta.has(id)) {
+      if (meta.size >= 60) continue;
+      try { meta.set(id, await api('/tasks/' + id)); } catch { meta.set(id, null); }
+    }
+    const x = meta.get(id);
+    if (!x) continue;
+    const labels = (x.labels || []).map((l) => String(l).toLowerCase());
+    const task = { id, content: x.content || e.extra_data?.content || '', labels, priority: prio(x.priority) };
+    out.push({ ...task, domain: classify(task, sections[x.section_id]), points: taskPoints(task, CFG.score), completedAt: at, at: new Date(at) });
+  }
   return out;
 }
 
@@ -669,6 +861,33 @@ function showError(e) {
   $('retry').addEventListener('click', load);
   $('reset').addEventListener('click', () => { setToken(''); showSetup(''); });
 }
+// ---- punte spre Android: widget si notificari (maximum 2 pe saptamana) ----
+const native = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+async function afterModel(m) {
+  if (!native) return;
+  try {
+    Capacitor.registerPlugin('Dinastia').update({
+      rank: RANKS[m.state.rank].name, score: m.current.score,
+      next: m.next ? m.next.text : '', risk: m.risk.atRisk,
+      closes: `se închide ${m.closesAt.toLocaleDateString('ro-RO', { weekday: 'long' })} la ${CFG.autoClose.hour}:00`
+    });
+  } catch {}
+  try {
+    const LN = Capacitor.registerPlugin('LocalNotifications');
+    let perm = await LN.checkPermissions();
+    if (perm.display === 'prompt' || perm.display === 'prompt-with-rationale') perm = await LN.requestPermissions();
+    if (perm.display !== 'granted') return;
+    await LN.cancel({ notifications: [{ id: 1 }, { id: 2 }] });
+    const now = Date.now(), list = [];
+    const verdict = new Date(+m.closesAt + 5 * 60000);          // duminica, imediat dupa inchidere
+    if (+verdict > now) list.push({ id: 1, title: 'Săptămâna s-a încheiat', body: 'Deschide Dinastia ca să vezi verdictul.', schedule: { at: verdict, allowWhileIdle: true } });
+    const warn = new Date(+m.closesAt - (2 * 24 + 3) * 3600e3);  // vineri la 18:00
+    if (+warn > now && (m.risk.atRisk || m.current.score <= CFG.loss.scoreAtOrBelow + 1))
+      list.push({ id: 2, title: 'Săptămâna e pe muchie', body: 'Mai ai timp să o schimbi. Vezi ce e în pericol.', schedule: { at: warn, allowWhileIdle: true } });
+    if (list.length) await LN.schedule({ notifications: list });
+  } catch {}
+}
+
 let loading = false;
 async function load() {
   if (loading) return;

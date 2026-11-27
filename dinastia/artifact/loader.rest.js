@@ -43,6 +43,38 @@ async function fetchTasks() {
       out.push({ ...task, domain: classify(task, sections[x.section_id]), points: taskPoints(task, CFG.score), completedAt: at, at: new Date(at) });
     }
   }
+  try { out.push(...(await recurring(proj, sections, out))); } catch { /* activitatea e optionala */ }
+  return out;
+}
+
+// Task-urile recurente nu apar in lista de bifate; le luam din jurnalul de activitate si
+// luam etichetele/prioritatea de pe task-ul activ. Formatul nu e verificat cu un cont real, deci e defensiv.
+async function recurring(proj, sections, done) {
+  const seen = new Set(done.map((t) => t.id + '|' + String(t.completedAt).slice(0, 16)));
+  const events = [];
+  let cursor;
+  for (let i = 0; i < 10; i++) {
+    const r = await api('/activities', { object_type: 'task', event_type: 'completed', parent_project_id: proj.id, limit: 100, cursor });
+    events.push(...(r.results || r.events || []));
+    cursor = r.next_cursor;
+    if (!cursor) break;
+  }
+  const out = [], meta = new Map();
+  for (const e of events) {
+    const at = e.event_date || e.date;
+    const id = String(e.object_id || e.id || '');
+    if (!at || !id || new Date(at) < GAME_START) continue;
+    if (seen.has(id + '|' + String(at).slice(0, 16))) continue;
+    if (!meta.has(id)) {
+      if (meta.size >= 60) continue;
+      try { meta.set(id, await api('/tasks/' + id)); } catch { meta.set(id, null); }
+    }
+    const x = meta.get(id);
+    if (!x) continue;
+    const labels = (x.labels || []).map((l) => String(l).toLowerCase());
+    const task = { id, content: x.content || e.extra_data?.content || '', labels, priority: prio(x.priority) };
+    out.push({ ...task, domain: classify(task, sections[x.section_id]), points: taskPoints(task, CFG.score), completedAt: at, at: new Date(at) });
+  }
   return out;
 }
 
@@ -64,6 +96,33 @@ function showError(e) {
   $('retry').addEventListener('click', load);
   $('reset').addEventListener('click', () => { setToken(''); showSetup(''); });
 }
+// ---- punte spre Android: widget si notificari (maximum 2 pe saptamana) ----
+const native = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+async function afterModel(m) {
+  if (!native) return;
+  try {
+    Capacitor.registerPlugin('Dinastia').update({
+      rank: RANKS[m.state.rank].name, score: m.current.score,
+      next: m.next ? m.next.text : '', risk: m.risk.atRisk,
+      closes: `se închide ${m.closesAt.toLocaleDateString('ro-RO', { weekday: 'long' })} la ${CFG.autoClose.hour}:00`
+    });
+  } catch {}
+  try {
+    const LN = Capacitor.registerPlugin('LocalNotifications');
+    let perm = await LN.checkPermissions();
+    if (perm.display === 'prompt' || perm.display === 'prompt-with-rationale') perm = await LN.requestPermissions();
+    if (perm.display !== 'granted') return;
+    await LN.cancel({ notifications: [{ id: 1 }, { id: 2 }] });
+    const now = Date.now(), list = [];
+    const verdict = new Date(+m.closesAt + 5 * 60000);          // duminica, imediat dupa inchidere
+    if (+verdict > now) list.push({ id: 1, title: 'Săptămâna s-a încheiat', body: 'Deschide Dinastia ca să vezi verdictul.', schedule: { at: verdict, allowWhileIdle: true } });
+    const warn = new Date(+m.closesAt - (2 * 24 + 3) * 3600e3);  // vineri la 18:00
+    if (+warn > now && (m.risk.atRisk || m.current.score <= CFG.loss.scoreAtOrBelow + 1))
+      list.push({ id: 2, title: 'Săptămâna e pe muchie', body: 'Mai ai timp să o schimbi. Vezi ce e în pericol.', schedule: { at: warn, allowWhileIdle: true } });
+    if (list.length) await LN.schedule({ notifications: list });
+  } catch {}
+}
+
 let loading = false;
 async function load() {
   if (loading) return;
