@@ -1,0 +1,2 @@
+{ "name": "dinastia-ta", "version": "1.0.0", "type": "module", "private": true,
+  "scripts": { "start": "TZ=Europe/Bucharest node server/index.js", "test": "node --test test/*.test.js" } }

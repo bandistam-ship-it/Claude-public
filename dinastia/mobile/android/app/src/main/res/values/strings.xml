@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dinastia ta</string>
+    <string name="title_activity_main">Dinastia ta</string>
+    <string name="package_name">app.dinastia</string>
+    <string name="custom_url_scheme">app.dinastia</string>
+    <string name="widget_description">Rangul tău, scorul săptămânii și următoarea cucerire.</string>
+</resources>

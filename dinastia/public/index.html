@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dinastia ta</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b1610">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<header>
+  <div>
+    <h1>Dinastia ta</h1>
+    <div id="who" class="sub"></div>
+  </div>
+  <div id="rank" class="rank"></div>
+</header>
+<main>
+  <section class="map-wrap">
+    <svg id="map" viewBox="-380 -380 760 760" role="img" aria-label="Harta teritoriilor"></svg>
+    <div class="legend">
+      <span><i class="dot d-drept"></i>Drept</span><span><i class="dot d-filosofie"></i>Filosofie</span>
+      <span><i class="dot d-sport"></i>Sport</span><span><i class="dot d-casa"></i>Casă</span>
+      <span><i class="dot lost"></i>Pierdut</span><span><i class="dot locked"></i>Încă închis</span>
+    </div>
+  </section>
+  <aside>
+    <section class="card" id="territory"></section>
+    <section class="card" id="week"></section>
+    <section class="card" id="recognition"></section>
+    <section class="card" id="journal"></section>
+  </aside>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<title>Dinastia ta</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: harta in inele (treapta = inel) langa panouri; pe telefon se stivuiesc. Un singur look: pergament intunecat. */
+:root{--bg:#1b1610;--panel:#2a2218;--ink:#ecdfc4;--muted:#a8997a;--line:#4a3d2a;--gold:#d4a843;--bar:#14100b;
+--drept:#8c3b3b;--filosofie:#4b6a9b;--sport:#5d8a4a;--casa:#a8793a;--lost:#7a1f1f;--locked:#4a4234;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,'Times New Roman',serif;
+padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:8px 16px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:1.6rem;letter-spacing:.04em;color:var(--gold)}
+h2{margin:0 0 8px;font-size:1.05rem;color:var(--gold)}
+.sub{color:var(--muted);font-size:.9rem}
+.rank{text-align:right}.rank b{display:block;font-size:1.2rem}
+main{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;padding-top:16px;max-width:1300px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:minmax(0,1fr)}}
+.map-wrap{background:radial-gradient(circle,#3a2f1e,#241c12);border:1px solid var(--line);border-radius:10px;padding:8px}
+#map{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted);padding:6px 8px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.bar{height:8px;background:var(--bar);border-radius:4px;overflow:hidden;margin:4px 0 10px}
+.bar>i{display:block;height:100%;background:var(--gold)}
+button{font:inherit;background:var(--gold);color:#1b1610;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ev{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:8px 0;font-size:.92rem}
+.ev.good{border-color:var(--sport)}.ev.bad,.ev.loss{border-color:var(--lost)}.ev.conquest,.ev.rank{border-color:var(--gold)}.ev.death{border-color:#000;background:#150f0a}
+.ev small{color:var(--muted);display:block}
+.warn{color:#e9a96a;font-size:.92rem}
+.now{border-color:var(--gold)}.now b{color:var(--gold)}
+.risk{color:#f0a08a}
+.sector{cursor:pointer;stroke:#14100b;stroke-width:2}
+.sector:hover{filter:brightness(1.25)}.sector.sel{stroke:var(--gold);stroke-width:4}
+.lbl{fill:#fff;font-size:11px;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#000a;stroke-width:3px}
+.lbl.small{font-size:9px}
+#status{padding:24px 0;text-align:center}
+</style>
+<header>
+  <div><h1>Dinastia ta</h1><div id="who" class="sub"></div></div>
+  <div id="rank" class="rank"></div>
+</header>
+<div id="status" class="sub">Se citește Todoist…</div>
+<main id="app" hidden>
+  <section class="map-wrap">
+    <svg id="map" viewBox="-380 -380 760 760" role="img" aria-label="Harta teritoriilor"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--drept)"></i>Drept</span><span><i class="dot" style="background:var(--filosofie)"></i>Filosofie</span>
+      <span><i class="dot" style="background:var(--sport)"></i>Sport</span><span><i class="dot" style="background:var(--casa)"></i>Casă</span>
+      <span><i class="dot" style="background:var(--lost)"></i>Pierdut</span><span><i class="dot" style="background:var(--locked)"></i>Încă închis</span>
+    </div>
+  </section>
+  <aside>
+    <section class="card" id="now"></section>
+    <section class="card" id="territory"></section>
+    <section class="card" id="week"></section>
+    <section class="card" id="chronicle"></section>
+    <section class="card" id="barou"></section>
+    <section class="card" id="recognition"></section>
+    <section class="card" id="journal"></section>
+  </aside>
+</main>
+<script>
+/*GAME*/
+const TERRS = /*TERRITORIES*/;
+const CFG = /*CONFIG*/;
+
+// ---- parametri: jocul se reface de la aceasta data, saptamana cu saptamana ----
+const GAME_START = new Date(2026, 10, 16);                       // luni 16 nov 2026
+const boundary = (i) => new Date(2026, 10, 22 + 7 * i, CFG.autoClose.hour, 0); // sfarsitul saptamanii i: duminica 21:00
+const SERVER = 'Todoist';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const DOMAIN_COLOR = { drept: '#8c3b3b', filosofie: '#4b6a9b', sport: '#5d8a4a', casa: '#a8793a' };
+const STATUS = { conquered: 'cucerit', available: 'disponibil', locked: 'încă închis', lost: 'pierdut' };
+let selected = 'obor', model = null;
+
+// ---- Todoist ----
+function classify(task, sectionName) {
+  const d = CFG.domains, labels = task.labels;
+  if (labels.some((l) => d.dreptLabels.includes(l))) return 'drept';
+  for (const l of labels) if (d.labelToDomain[l]) return d.labelToDomain[l];
+  const sec = (sectionName || '').toLowerCase();
+  for (const [k, v] of Object.entries(d.sectionToDomain)) if (sec.includes(k)) return v;
+  return null;
+}
+// ---- reluarea jocului din istoricul Todoist ----
+function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function compute(tasks, now) {
+  const state = newState(GAME_START);
+  const cfgFor = () => ({ ...CFG.score, weeklyTargetPoints: adaptiveTarget(state.history, CFG.score.weeklyTargetPoints) });
+  let i = 0;
+  for (; boundary(i) <= now; i++) {
+    const lo = new Date(Math.max(+GAME_START, +boundary(i - 1))), hi = boundary(i);
+    const wk = tasks.filter((t) => t.at >= lo && t.at < hi);
+    const week = { key: `W${i}`, ...scoreWeek(wk, cfgFor()) };
+    closeWeek(state, TERRS, week, { tasks: tasks.filter((t) => t.at < hi) }, CFG, seeded(i * 7919 + 13), hi);
+  }
+  const ctx = { tasks };
+  checkConquests(state, TERRS, ctx, now);
+  const lo = new Date(Math.max(+GAME_START, +boundary(i - 1)));
+  const scoreCfg = cfgFor();
+  const current = scoreWeek(tasks.filter((t) => t.at >= lo), scoreCfg);
+  const territories = TERRS.map((t) => ({ ...t,
+    status: state.conquered[t.id] ? 'conquered' : state.lost[t.id] ? 'lost' : isAvailable(t, state) ? 'available' : 'locked',
+    rival: state.lost[t.id]?.rival || null, ...evaluate(t, state, ctx) }));
+  const closesAt = boundary(i);
+  return { state, territories, current, closesAt, weeksClosed: i, taskCount: tasks.length, target: scoreCfg.weeklyTargetPoints,
+    chronicle: dailyChronicle(tasks, state.rank, now, 7), next: nextConquest(territories),
+    risk: riskAssessment(state, TERRS, current, CFG, now, closesAt), streaks: domainStreaks(state.history),
+    barou: barouCampaign(tasks, CFG, now) };
+}
+
+// ---- afisare (doar citire) ----
+const RINGS = { 1: [0, 70], 2: [80, 175], 3: [185, 265], 4: [275, 350] };
+const pol = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
+function sector(inner, outer, a0, a1) {
+  if (inner === 0) return `M${-outer} 0 a${outer} ${outer} 0 1 0 ${2 * outer} 0 a${outer} ${outer} 0 1 0 ${-2 * outer} 0`;
+  const [x0, y0] = pol(outer, a0), [x1, y1] = pol(outer, a1), [x2, y2] = pol(inner, a1), [x3, y3] = pol(inner, a0);
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${x0} ${y0} A${outer} ${outer} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${inner} ${inner} 0 ${large} 0 ${x3} ${y3} Z`;
+}
+function fillFor(t) {
+  const c = t.domain ? DOMAIN_COLOR[t.domain] : '#c8a24a';
+  if (t.status === 'conquered') return [c, 1];
+  if (t.status === 'lost') return ['#7a1f1f', 0.95];
+  if (t.status === 'available') return [c, 0.35];
+  return ['#4a4234', 0.55];
+}
+function renderMap() {
+  let out = '';
+  for (const tier of [...new Set(model.territories.map((t) => t.tier))]) {
+    const list = model.territories.filter((t) => t.tier === tier), [inner, outer] = RINGS[tier] || [0, 0];
+    if (!outer) continue;
+    const gap = list.length > 1 ? 0.03 : 0;
+    list.forEach((t, i) => {
+      const a0 = -Math.PI / 2 + (i / list.length) * 2 * Math.PI + gap, a1 = -Math.PI / 2 + ((i + 1) / list.length) * 2 * Math.PI - gap;
+      const [fill, op] = fillFor(t), [lx, ly] = tier === 1 ? [0, 0] : pol((inner + outer) / 2, (a0 + a1) / 2);
+      const flag = t.status === 'conquered' ? '⚑ ' : t.status === 'lost' ? '✕ ' : '';
+      out += `<path class="sector ${selected === t.id ? 'sel' : ''}" data-id="${t.id}" d="${sector(inner, outer, a0, a1)}" fill="${fill}" fill-opacity="${op}"><title>${esc(t.name)} — ${STATUS[t.status]}</title></path>`;
+      out += `<text class="lbl ${list.length > 8 ? 'small' : ''}" x="${lx}" y="${ly}" dy="4">${flag}${esc(t.name)}</text>`;
+    });
+  }
+  $('map').innerHTML = out;
+  $('map').querySelectorAll('.sector').forEach((el) => el.addEventListener('click', () => { selected = el.dataset.id; render(); }));
+}
+function renderTerritory() {
+  const t = model.territories.find((x) => x.id === selected) || model.territories[0];
+  const unit = { streak: 'săptămâni', taskCount: 'task-uri', weeklyDomain: 'săptămâni' }[t.type];
+  let h = `<h2>${esc(t.name)} <span class="sub">· ${t.domain ? DOMAIN_NAMES[t.domain] : 'Țara întreagă'} · ${STATUS[t.status]}</span></h2><p>${esc(t.target)}</p>`;
+  if (t.status === 'lost') h += `<p class="warn">Luat de ${esc(t.rival)}. Îl recucerești cu aceeași țintă.</p>`;
+  if (unit) h += `<div class="sub">${t.progress} / ${t.goal} ${unit}</div><div class="bar"><i style="width:${t.goal ? Math.round(t.progress / t.goal * 100) : 0}%"></i></div>`;
+  if (t.type === 'tag' && (t.status === 'available' || t.status === 'lost')) h += `<p class="sub">Se cucerește când bifezi în Todoist un task cu <b>[${esc(t.name)}]</b> în titlu.</p>`;
+  if (t.status === 'locked') h += '<p class="sub">Se deschide când ajungi la un rang mai mare.</p>';
+  $('territory').innerHTML = h;
+}
+function renderNow() {
+  const m = model, parts = [];
+  if (m.risk.atRisk) parts.push(`<p class="risk"><b>Atenție:</b> ${esc(m.risk.victim.name)} e în pericol. Scorul e ${m.risk.score}/10 și rămân ${Math.max(0, Math.ceil(m.risk.daysLeft))} zile. Încă poți schimba săptămâna.</p>`);
+  if (m.next) parts.push(`<p><b>Următoarea cucerire:</b> ${esc(m.next.text)}.</p>`);
+  const h = new Date().getHours();
+  $('now').className = 'card' + (m.risk.atRisk ? '' : ' now');
+  $('now').innerHTML = `<h2>Acum</h2>${parts.join('') || '<p class="sub">Nicio țintă deschisă. Mai urcă un rang.</p>'}`;
+}
+function renderChronicle() {
+  const c = model.chronicle;
+  $('chronicle').innerHTML = '<h2>Cronica zilelor</h2>' + (c.length ? c.map((e) => `<div class="ev good">${esc(e.text)}<small>${e.day.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' })}</small></div>`).join('') : '<p class="sub">Nimic bifat în ultimele zile. Prima treabă bifată în Todoist apare aici.</p>');
+}
+function renderBarou() {
+  const b = model.barou, names = CFG.barou.names;
+  const subj = Object.entries(b.subjects).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${names[k] || k}: ${v}`).join(' · ');
+  $('barou').innerHTML = `<h2>Campania Barou 2027</h2><p><b>~${b.days} zile</b> până în septembrie 2027 (~${b.weeks} săptămâni). Data exactă nu e încă anunțată.</p><div class="sub">Ultimele 7 zile: ${b.lastWeek} task-uri de Barou · total ${b.total}</div>${subj ? `<div class="sub">${esc(subj)}</div>` : ''}`;
+}
+function renderWeek() {
+  const w = model.current, s = model.state;
+  let h = `<h2>Săptămâna curentă</h2><div class="bar"><i style="width:${w.score * 10}%"></i></div><div>Scor până acum: <b>${w.score}/10</b></div>`;
+  for (const d of DOMAINS) h += `<div class="sub">${DOMAIN_NAMES[d]}: ${w.domains[d].count} task-uri · ${Math.round(w.domains[d].ratio * 100)}%</div>`;
+  h += `<p class="sub">Ținta ta din ultimele săptămâni: ${model.target} puncte. Se calibrează singură.</p><p class="sub">Se închide singură ${model.closesAt.toLocaleDateString('ro-RO', { weekday: 'long' })} la ${CFG.autoClose.hour}:00.</p>`;
+  const hist = s.history.slice(-8).map((x) => x.score).join(' · ');
+  if (hist) h += `<div class="sub">Ultimele scoruri: ${hist}</div>`;
+  $('week').innerHTML = h;
+}
+function renderRecognition() {
+  $('recognition').innerHTML = '<h2>Recunoaștere</h2>' + DOMAINS.map((d) => `<div class="sub">${DOMAIN_NAMES[d]}: ${model.state.recognition[d]}${model.streaks[d] >= 2 ? ` · serie ${model.streaks[d]} săptămâni` : ''}</div><div class="bar"><i style="width:${model.state.recognition[d]}%;background:${DOMAIN_COLOR[d]}"></i></div>`).join('');
+}
+function renderJournal() {
+  const s = model.state;
+  let h = '<h2>Jurnalul dinastiei</h2>';
+  if (s.ancestors.length) h += `<div class="sub">Strămoși: ${s.ancestors.map((a) => `${esc(a.name)} (gen. ${a.generation})`).join(', ')}</div>`;
+  const items = s.journal.slice(-25).reverse();
+  h += items.length ? items.map((e) => `<div class="ev ${e.kind}">${esc(e.text)}<small>${new Date(e.at).toLocaleDateString('ro-RO')} · ${esc(e.rank)} · gen. ${e.generation}</small></div>`).join('') : '<p class="sub">Povestea începe la prima închidere de săptămână.</p>';
+  $('journal').innerHTML = h;
+}
+function render() {
+  const s = model.state, r = RANKS[s.rank];
+  $('who').textContent = `${s.dynasty.name}, generația ${s.dynasty.generation}` + (s.dynasty.trait ? ` · moștenire: +${s.dynasty.trait.bonus} ${DOMAIN_NAMES[s.dynasty.trait.domain]}` : '');
+  $('rank').innerHTML = `<b>${esc(r.name)}</b><span class="sub">Următorul pas: ${esc(r.next)}${STEP_FACTORS[s.rank] ? ` · dificultate ×${STEP_FACTORS[s.rank]}` : ''}</span>`;
+  renderNow(); renderMap(); renderTerritory(); renderWeek(); renderChronicle(); renderBarou(); renderRecognition(); renderJournal();
+  if (typeof afterModel === 'function') afterModel(model);
+  $('app').hidden = false;
+}
+
+/*LOADER*/
+</script>

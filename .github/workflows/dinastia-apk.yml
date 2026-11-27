@@ -1,0 +1,61 @@
+name: Dinastia APK
+
+on:
+  push:
+    branches: ['ccr-*', main]
+    paths: ['dinastia/**', '.github/workflows/dinastia-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dinastia
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dinastia/mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Test the game logic
+        run: node --test test/game.test.js
+
+      - name: Build the web app and sync into Android
+        working-directory: dinastia/mobile
+        run: |
+          npm ci
+          npm run web
+          npx cap sync android
+
+      - name: Build the debug APK
+        working-directory: dinastia/mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Name the APK
+        run: cp mobile/android/app/build/outputs/apk/debug/app-debug.apk dinastia-ta.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dinastia-apk
+          path: dinastia/dinastia-ta.apk
+          if-no-files-found: error
+
+      - name: Publish as a release (download link for the phone)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dinastia-latest --yes --cleanup-tag || true
+          gh release create dinastia-latest dinastia-ta.apk --target "$GITHUB_SHA" \
+            --title "Dinastia ta (APK)" --notes "Debug APK. Install on Android, allow unknown sources. Run $GITHUB_RUN_NUMBER." --prerelease
